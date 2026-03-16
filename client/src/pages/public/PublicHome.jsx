@@ -49,8 +49,7 @@ export default function PublicHome() {
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
-    axios.get('
-/api/public/stats').then(r => setStats(r.data.data)).catch(() => {});
+    axios.get('/api/public/stats').then(r => setStats(r.data.data)).catch(() => {});
     axios.get('/api/public/notices').then(r => setNotices(r.data.data || [])).catch(() => {});
     axios.get('/api/public/admission-settings').then(r => setSettings(r.data.data)).catch(() => {});
   }, []);
