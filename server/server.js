@@ -63,6 +63,8 @@ app.use('/api/hostel', hostelRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/revaluation', require('./routes/revaluationRoutes'));
+app.use('/api/admissions', require('./routes/admissionRoutes'));
+app.use('/api/public', require('./routes/admissionRoutes')); // public stats/faculty/etc.
 
 app.get('/api/health', (req, res) => res.json({ status: 'CampusNex API running' }));
 

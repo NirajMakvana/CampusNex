@@ -45,12 +45,20 @@ export default function Landing() {
           <GraduationCap size={26} className="text-indigo-600" />
           <span className="text-lg font-bold text-indigo-600">CampusNex</span>
         </div>
-        <Link
-          to="/login"
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          Sign In <ArrowRight size={14} />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/home"
+            className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            Public Site
+          </Link>
+          <Link
+            to="/login"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Sign In <ArrowRight size={14} />
+          </Link>
+        </div>
       </nav>
 
       {/* Hero */}

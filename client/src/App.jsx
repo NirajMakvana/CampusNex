@@ -23,6 +23,17 @@ import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import Landing from './pages/Landing';
 
+// Public website pages
+import PublicHome from './pages/public/PublicHome';
+import PublicAbout from './pages/public/PublicAbout';
+import PublicCourses from './pages/public/PublicCourses';
+import PublicAdmissions from './pages/public/PublicAdmissions';
+import PublicFaculty from './pages/public/PublicFaculty';
+import PublicCampusLife from './pages/public/PublicCampusLife';
+import PublicContact from './pages/public/PublicContact';
+import ApplyForm from './pages/public/ApplyForm';
+import TrackApplication from './pages/public/TrackApplication';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -55,7 +66,7 @@ export default function App() {
             } />
             <Route path="/notices" element={<Notices />} />
             <Route path="/leaves" element={
-              <ProtectedRoute roles={['admin', 'superadmin', 'faculty']}><Leaves /></ProtectedRoute>
+              <ProtectedRoute roles={['admin', 'superadmin', 'faculty', 'student']}><Leaves /></ProtectedRoute>
             } />
             <Route path="/reports" element={
               <ProtectedRoute roles={['admin', 'superadmin']}><Reports /></ProtectedRoute>
@@ -64,6 +75,17 @@ export default function App() {
           </Route>
 
           <Route path="*" element={<NotFound />} />
+
+          {/* Public website routes */}
+          <Route path="/home" element={<PublicHome />} />
+          <Route path="/about" element={<PublicAbout />} />
+          <Route path="/courses-info" element={<PublicCourses />} />
+          <Route path="/admissions" element={<PublicAdmissions />} />
+          <Route path="/admissions/apply" element={<ApplyForm />} />
+          <Route path="/admissions/track" element={<TrackApplication />} />
+          <Route path="/faculty-info" element={<PublicFaculty />} />
+          <Route path="/campus-life" element={<PublicCampusLife />} />
+          <Route path="/contact" element={<PublicContact />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
