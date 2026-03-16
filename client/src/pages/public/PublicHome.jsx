@@ -12,48 +12,65 @@ const features = [
 ];
 
 const testimonials = [
-  { name: 'Priya Shah', course: 'BCA 3rd Year', text: 'CampusNex made tracking my attendance and results so easy. The portal is super intuitive.', rating: 5 },
-  { name: 'Rahul Patel', course: 'BBA 2nd Year', text: 'The fee payment and hostel management features saved me so much time. Highly recommend.', rating: 5 },
-  { name: 'Anjali Mehta', course: 'BSc IT 1st Year', text: 'Applying for admission was seamless. Got my application ID instantly and tracked everything online.', rating: 4 },
+  { name: 'Priya Shah', course: 'BCA 3rd Year', text: 'CampusNex made tracking my attendance and results so easy. The portal is super intuitive.', rating: 5, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face' },
+  { name: 'Rahul Patel', course: 'BBA 2nd Year', text: 'The fee payment and hostel management features saved me so much time. Highly recommend.', rating: 5, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face' },
+  { name: 'Anjali Mehta', course: 'BSc IT 1st Year', text: 'Applying for admission was seamless. Got my application ID instantly and tracked everything online.', rating: 4, avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face' },
 ];
+
+const courseImages = {
+  BCA: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=200&fit=crop',
+  BBA: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=200&fit=crop',
+  'BSc IT': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=200&fit=crop',
+};
 
 export default function PublicHome() {
   const [stats, setStats] = useState({ students: 1200, faculty: 80, departments: 6, yearsEstablished: 15 });
   const [notices, setNotices] = useState([]);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     axios.get('/api/public/stats').then(r => setStats(r.data.data)).catch(() => {});
     axios.get('/api/public/notices').then(r => setNotices(r.data.data || [])).catch(() => {});
+    axios.get('/api/public/admission-settings').then(r => setSettings(r.data.data)).catch(() => {});
   }, []);
+
+  const lastDate = settings?.lastDateToApply
+    ? new Date(settings.lastDateToApply).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'July 31, 2025';
 
   return (
     <PublicLayout>
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-slate-50 px-6 py-28 text-center">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/50 via-transparent to-transparent pointer-events-none" />
-        <div className="relative max-w-3xl mx-auto">
-          <span className="inline-block mb-4 px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded-full tracking-wide uppercase">
-            Admissions Open 2025–26
+      {/* Hero with background image */}
+      <section className="relative overflow-hidden min-h-[88vh] flex items-center">
+        <img
+          src="https://images.unsplash.com/photo-1562774053-701939374585?w=1600&h=900&fit=crop"
+          alt="Campus"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-transparent" />
+        <div className="relative max-w-3xl mx-auto px-6 py-28 text-left">
+          <span className="inline-block mb-4 px-3 py-1 text-xs font-semibold bg-indigo-500/30 text-indigo-200 border border-indigo-400/40 rounded-full tracking-wide uppercase backdrop-blur-sm">
+            {settings?.isOpen ? '🟢 Admissions Open 2025–26' : 'Admissions 2025–26'}
           </span>
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 leading-tight mb-5">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-white leading-tight mb-5">
             Shape Your Future at<br />
-            <span className="text-indigo-600">CampusNex College</span>
+            <span className="text-indigo-400">CampusNex College</span>
           </h1>
-          <p className="text-lg text-slate-500 mb-8 max-w-xl mx-auto">
+          <p className="text-lg text-slate-300 mb-8 max-w-xl">
             VNSGU affiliated institution offering BCA, BBA, and BSc programs with world-class facilities and expert faculty.
           </p>
-          <div className="flex items-center justify-center gap-4 flex-wrap">
-            <Link to="/admissions/apply" className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+          <div className="flex items-center gap-4 flex-wrap">
+            <Link to="/admissions/apply" className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-900/40">
               Apply Now <ArrowRight size={16} />
             </Link>
-            <Link to="/courses-info" className="px-6 py-3 border border-slate-200 text-slate-600 font-medium rounded-xl hover:bg-slate-50 transition-colors">
+            <Link to="/courses-info" className="px-6 py-3 border border-white/30 text-white font-medium rounded-xl hover:bg-white/10 transition-colors backdrop-blur-sm">
               Explore Courses
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Stats */}
+      {/* Stats — dynamic from API */}
       <section className="bg-indigo-600 text-white py-10 px-6">
         <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           {[
@@ -70,7 +87,7 @@ export default function PublicHome() {
         </div>
       </section>
 
-      {/* Featured Courses */}
+      {/* Featured Courses with images */}
       <section className="py-20 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
@@ -79,20 +96,23 @@ export default function PublicHome() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
-              { name: 'BCA', full: 'Bachelor of Computer Applications', duration: '3 Years', seats: 60, color: 'bg-blue-50 border-blue-200', badge: 'bg-blue-100 text-blue-700' },
-              { name: 'BBA', full: 'Bachelor of Business Administration', duration: '3 Years', seats: 60, color: 'bg-emerald-50 border-emerald-200', badge: 'bg-emerald-100 text-emerald-700' },
-              { name: 'BSc IT', full: 'Bachelor of Science in IT', duration: '3 Years', seats: 40, color: 'bg-purple-50 border-purple-200', badge: 'bg-purple-100 text-purple-700' },
+              { name: 'BCA', full: 'Bachelor of Computer Applications', duration: '3 Years', seats: 60, badge: 'bg-blue-100 text-blue-700' },
+              { name: 'BBA', full: 'Bachelor of Business Administration', duration: '3 Years', seats: 60, badge: 'bg-emerald-100 text-emerald-700' },
+              { name: 'BSc IT', full: 'Bachelor of Science in IT', duration: '3 Years', seats: 40, badge: 'bg-purple-100 text-purple-700' },
             ].map(c => (
-              <div key={c.name} className={`rounded-xl border p-6 ${c.color}`}>
-                <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-3 ${c.badge}`}>{c.name}</span>
-                <h3 className="font-semibold text-slate-800 mb-2">{c.full}</h3>
-                <div className="text-sm text-slate-500 space-y-1 mb-4">
-                  <div>Duration: {c.duration}</div>
-                  <div>Seats: {c.seats}</div>
+              <div key={c.name} className="rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow">
+                <img src={courseImages[c.name]} alt={c.name} className="w-full h-40 object-cover" />
+                <div className="p-5">
+                  <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-3 ${c.badge}`}>{c.name}</span>
+                  <h3 className="font-semibold text-slate-800 mb-2">{c.full}</h3>
+                  <div className="text-sm text-slate-500 space-y-1 mb-4">
+                    <div>Duration: {c.duration}</div>
+                    <div>Seats: {c.seats}</div>
+                  </div>
+                  <Link to="/admissions/apply" className="text-sm font-medium text-indigo-600 hover:underline flex items-center gap-1">
+                    Apply Now <ChevronRight size={14} />
+                  </Link>
                 </div>
-                <Link to="/admissions/apply" className="text-sm font-medium text-indigo-600 hover:underline flex items-center gap-1">
-                  Apply Now <ChevronRight size={14} />
-                </Link>
               </div>
             ))}
           </div>
@@ -120,11 +140,17 @@ export default function PublicHome() {
         </div>
       </section>
 
-      {/* Admission CTA Banner */}
-      <section className="py-14 px-6 bg-indigo-600 text-white text-center">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-2xl font-bold mb-2">Admissions Open for 2025–26</h2>
-          <p className="text-indigo-200 mb-6">Last date to apply: <strong className="text-white">July 31, 2025</strong>. Don't miss your chance.</p>
+      {/* Admission CTA Banner — dynamic last date */}
+      <section className="relative py-20 px-6 text-white text-center overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1400&h=500&fit=crop"
+          alt="Admissions"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-indigo-900/75" />
+        <div className="relative max-w-2xl mx-auto">
+          <h2 className="text-3xl font-bold mb-3">Admissions Open for 2025–26</h2>
+          <p className="text-indigo-200 mb-6">Last date to apply: <strong className="text-white">{lastDate}</strong>. Don't miss your chance.</p>
           <div className="flex justify-center gap-4 flex-wrap">
             <Link to="/admissions/apply" className="px-6 py-3 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-colors">
               Apply Now
@@ -136,7 +162,7 @@ export default function PublicHome() {
         </div>
       </section>
 
-      {/* Latest Notices */}
+      {/* Latest Notices — dynamic */}
       {notices.length > 0 && (
         <section className="py-20 px-6 bg-white">
           <div className="max-w-4xl mx-auto">
@@ -159,7 +185,7 @@ export default function PublicHome() {
         </section>
       )}
 
-      {/* Testimonials */}
+      {/* Testimonials with avatars */}
       <section className="py-20 px-6 bg-slate-50">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
@@ -174,9 +200,12 @@ export default function PublicHome() {
                   ))}
                 </div>
                 <p className="text-sm text-slate-600 mb-4 italic">"{t.text}"</p>
-                <div>
-                  <div className="font-semibold text-slate-800 text-sm">{t.name}</div>
-                  <div className="text-xs text-slate-400">{t.course}</div>
+                <div className="flex items-center gap-3">
+                  <img src={t.avatar} alt={t.name} className="w-10 h-10 rounded-full object-cover" />
+                  <div>
+                    <div className="font-semibold text-slate-800 text-sm">{t.name}</div>
+                    <div className="text-xs text-slate-400">{t.course}</div>
+                  </div>
                 </div>
               </div>
             ))}
