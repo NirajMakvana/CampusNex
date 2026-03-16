@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { GraduationCap, MapPin, Phone, Mail, Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
+import { GraduationCap, MapPin, Phone, Mail } from 'lucide-react';
 
 export default function PublicFooter() {
   return (
@@ -15,9 +15,14 @@ export default function PublicFooter() {
             Empowering education through smart campus management. VNSGU affiliated institution.
           </p>
           <div className="flex gap-3">
-            {[Facebook, Twitter, Instagram, Youtube].map((Icon, i) => (
-              <a key={i} href="#" className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center hover:bg-indigo-600 transition-colors">
-                <Icon size={15} />
+            {[
+              { label: 'FB', href: '#' },
+              { label: 'TW', href: '#' },
+              { label: 'IG', href: '#' },
+              { label: 'YT', href: '#' },
+            ].map(({ label, href }) => (
+              <a key={label} href={href} className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center hover:bg-indigo-600 transition-colors text-xs font-bold text-slate-400 hover:text-white">
+                {label}
               </a>
             ))}
           </div>

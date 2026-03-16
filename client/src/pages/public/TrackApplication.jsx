@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, CheckCircle2, Clock, XCircle, AlertCircle } from 'lucide-react';
+import { Search, CheckCircle2, Clock, XCircle, AlertCircle, CreditCard } from 'lucide-react';
 import PublicLayout from '../../components/public/PublicLayout';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -19,10 +19,13 @@ export default function TrackApplication() {
   const [form, setForm] = useState({ applicationId: '', email: '' });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [payProcessing, setPayProcessing] = useState(false);
+  const [payDone, setPayDone] = useState(false);
 
   const handleTrack = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setPayDone(false);
     try {
       const res = await axios.post('/api/admissions/track', form);
       setResult(res.data.data);
@@ -31,6 +34,24 @@ export default function TrackApplication() {
       setResult(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConfirmationPay = async () => {
+    setPayProcessing(true);
+    await new Promise(r => setTimeout(r, 2500));
+    try {
+      await axios.post('/api/admissions/payment/simulate', {
+        applicationId: result.applicationId,
+        type: 'confirmation',
+      });
+      setPayDone(true);
+      setResult(r => ({ ...r, status: 'fee-pending', confirmationFee: { ...r.confirmationFee, status: 'paid' } }));
+      toast.success('Confirmation fee paid successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Payment failed');
+    } finally {
+      setPayProcessing(false);
     }
   };
 
@@ -151,7 +172,25 @@ export default function TrackApplication() {
                 )}
                 {result.status === 'shortlisted' && (
                   <div className="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-200 text-sm text-purple-700">
-                    You have been shortlisted! Please pay the confirmation fee to secure your seat.
+                    <p className="font-semibold mb-2">🎉 You have been shortlisted!</p>
+                    <p className="mb-4">Pay the confirmation fee to secure your seat.</p>
+                    {payDone ? (
+                      <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                        <CheckCircle2 size={16} /> Confirmation fee paid! Seat secured.
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleConfirmationPay}
+                        disabled={payProcessing}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-60"
+                      >
+                        {payProcessing ? (
+                          <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing...</>
+                        ) : (
+                          <><CreditCard size={15} /> Pay Confirmation Fee</>
+                        )}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

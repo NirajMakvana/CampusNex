@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, ExternalLink, CheckCircle2, XCircle, Clock, AlertCircle, User } from 'lucide-react';
+import { X, ExternalLink, CheckCircle2, User, CreditCard } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 
@@ -18,6 +18,7 @@ export default function ApplicationDetailModal({ appId, onClose }) {
   const [updating, setUpdating] = useState(false);
   const [departments, setDepartments] = useState([]);
   const [allocatedProgram, setAllocatedProgram] = useState('');
+  const [simPaying, setSimPaying] = useState(false);
 
   useEffect(() => {
     api.get(`/admissions/${appId}`).then(r => {
@@ -46,6 +47,23 @@ export default function ApplicationDetailModal({ appId, onClose }) {
       toast.error(err.response?.data?.message || 'Update failed');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleSimulateConfirmationFee = async () => {
+    setSimPaying(true);
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      await api.post('/admissions/payment/simulate', {
+        applicationId: app.applicationId,
+        type: 'confirmation',
+      });
+      toast.success('Confirmation fee marked as paid');
+      setApp(a => ({ ...a, confirmationFee: { ...a.confirmationFee, status: 'paid' } }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed');
+    } finally {
+      setSimPaying(false);
     }
   };
 
@@ -133,6 +151,26 @@ export default function ApplicationDetailModal({ appId, onClose }) {
                 <InfoRow label="App Fee" value={`₹${app.applicationFee?.amount} — ${app.applicationFee?.status}`} />
                 <InfoRow label="Confirmation Fee" value={`₹${app.confirmationFee?.amount} — ${app.confirmationFee?.status}`} />
               </Grid2>
+              {app.confirmationFee?.status === 'pending' && app.confirmationFee?.amount > 0 && (
+                <div className="mt-3">
+                  <button
+                    onClick={handleSimulateConfirmationFee}
+                    disabled={simPaying}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-60"
+                  >
+                    {simPaying ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing...</>
+                    ) : (
+                      <><CreditCard size={14} /> Simulate Confirmation Fee Payment</>
+                    )}
+                  </button>
+                </div>
+              )}
+              {app.confirmationFee?.status === 'paid' && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-emerald-700">
+                  <CheckCircle2 size={14} /> Confirmation fee paid
+                </div>
+              )}
             </Section>
 
             {/* Student created */}
