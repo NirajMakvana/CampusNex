@@ -95,13 +95,22 @@ export default function PublicHome() {
             <p className="text-slate-500">Industry-aligned programs designed for the future.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              { name: 'BCA', full: 'Bachelor of Computer Applications', duration: '3 Years', seats: 60, badge: 'bg-blue-100 text-blue-700' },
-              { name: 'BBA', full: 'Bachelor of Business Administration', duration: '3 Years', seats: 60, badge: 'bg-emerald-100 text-emerald-700' },
-              { name: 'BSc IT', full: 'Bachelor of Science in IT', duration: '3 Years', seats: 40, badge: 'bg-purple-100 text-purple-700' },
-            ].map(c => (
+            {(settings?.programs?.length
+              ? settings.programs.map((p, i) => ({
+                  name: p.name,
+                  full: p.name === 'BCA' ? 'Bachelor of Computer Applications' : p.name === 'BBA' ? 'Bachelor of Business Administration' : p.name === 'BSc IT' ? 'Bachelor of Science in IT' : p.name,
+                  duration: p.duration || '3 Years',
+                  seats: p.seats,
+                  badge: ['bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-purple-100 text-purple-700'][i % 3],
+                }))
+              : [
+                  { name: 'BCA', full: 'Bachelor of Computer Applications', duration: '3 Years', seats: 60, badge: 'bg-blue-100 text-blue-700' },
+                  { name: 'BBA', full: 'Bachelor of Business Administration', duration: '3 Years', seats: 60, badge: 'bg-emerald-100 text-emerald-700' },
+                  { name: 'BSc IT', full: 'Bachelor of Science in IT', duration: '3 Years', seats: 40, badge: 'bg-purple-100 text-purple-700' },
+                ]
+            ).map(c => (
               <div key={c.name} className="rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow">
-                <img src={courseImages[c.name]} alt={c.name} className="w-full h-40 object-cover" />
+                <img src={courseImages[c.name] || courseImages['BCA']} alt={c.name} className="w-full h-40 object-cover" />
                 <div className="p-5">
                   <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-3 ${c.badge}`}>{c.name}</span>
                   <h3 className="font-semibold text-slate-800 mb-2">{c.full}</h3>

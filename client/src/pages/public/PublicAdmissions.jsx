@@ -7,7 +7,7 @@ import axios from '../../api/axios';
 const steps = [
   { num: '01', title: 'Fill Application', desc: 'Complete the online application form with personal and academic details.' },
   { num: '02', title: 'Upload Documents', desc: 'Upload required documents — marksheets, photo, Aadhar, category certificate.' },
-  { num: '03', title: 'Pay Application Fee', desc: 'Pay the application fee online via Razorpay (UPI, card, net banking).' },
+  { num: '03', title: 'Pay Application Fee', desc: 'Pay the application fee online via simulated payment (UPI, card, net banking).' },
   { num: '04', title: 'Track & Confirm', desc: 'Track your application status and pay confirmation fee once shortlisted.' },
 ];
 
@@ -30,25 +30,31 @@ export default function PublicAdmissions() {
 
   return (
     <PublicLayout>
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-indigo-50 to-white py-20 px-6 text-center">
-        <div className="max-w-2xl mx-auto">
-          <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded-full uppercase tracking-wide">
+      {/* Hero with background image */}
+      <section className="relative overflow-hidden py-28 px-6 text-center">
+        <img
+          src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1400&h=500&fit=crop"
+          alt="Admissions"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-indigo-900/75" />
+        <div className="relative max-w-2xl mx-auto">
+          <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-full uppercase tracking-wide backdrop-blur-sm">
             {settings?.isOpen ? '🟢 Admissions Open' : '🔴 Admissions Closed'}
           </span>
-          <h1 className="text-4xl font-extrabold text-slate-900 mb-4">Admissions 2025–26</h1>
-          <p className="text-slate-500 text-lg">Join CampusNex and start your journey towards a successful career.</p>
+          <h1 className="text-4xl font-extrabold text-white mb-4">Admissions 2025–26</h1>
+          <p className="text-indigo-200 text-lg">Join CampusNex and start your journey towards a successful career.</p>
           <div className="flex justify-center gap-4 mt-8 flex-wrap">
             {settings?.isOpen ? (
-              <Link to="/admissions/apply" className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+              <Link to="/admissions/apply" className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 font-semibold rounded-xl hover:bg-indigo-50 transition-colors shadow-lg">
                 Apply Now <ArrowRight size={16} />
               </Link>
             ) : (
-              <div className="flex items-center gap-2 px-6 py-3 bg-slate-100 text-slate-500 font-medium rounded-xl">
+              <div className="flex items-center gap-2 px-6 py-3 bg-white/20 text-white font-medium rounded-xl backdrop-blur-sm">
                 <AlertCircle size={16} /> Applications not open yet
               </div>
             )}
-            <Link to="/admissions/track" className="px-6 py-3 border border-slate-200 text-slate-600 font-medium rounded-xl hover:bg-slate-50 transition-colors">
+            <Link to="/admissions/track" className="px-6 py-3 border border-white/40 text-white font-medium rounded-xl hover:bg-white/10 transition-colors">
               Track Application
             </Link>
           </div>

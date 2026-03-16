@@ -229,7 +229,10 @@ export default function ApplyForm() {
                         className="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400"
                       >
                         <option value="">Select Program</option>
-                        {['BCA', 'BBA', 'BSc IT'].map(p => <option key={p}>{p}</option>)}
+                        {(settings?.programs?.length
+                          ? settings.programs.map(p => p.name)
+                          : ['BCA', 'BBA', 'BSc IT']
+                        ).map(p => <option key={p}>{p}</option>)}
                       </select>
                     </div>
                   ))}

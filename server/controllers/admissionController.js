@@ -133,7 +133,7 @@ const trackApplication = asyncHandler(async (req, res) => {
     res.status(400); throw new Error('Application ID and email are required');
   }
   const app = await Application.findOne({ applicationId, 'personalInfo.email': email.toLowerCase() })
-    .select('-adminRemarks -reviewedBy')
+    .select('-reviewedBy')
     .populate('allocatedProgram', 'name');
   if (!app) { res.status(404); throw new Error('Application not found. Check your Application ID and email.'); }
   res.json({ success: true, data: app });

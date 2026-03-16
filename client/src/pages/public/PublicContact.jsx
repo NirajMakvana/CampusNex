@@ -24,12 +24,18 @@ export default function PublicContact() {
 
   return (
     <PublicLayout>
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-indigo-50 to-white py-20 px-6 text-center">
-        <div className="max-w-2xl mx-auto">
-          <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded-full uppercase tracking-wide">Get in Touch</span>
-          <h1 className="text-4xl font-extrabold text-slate-900 mb-4">Contact Us</h1>
-          <p className="text-slate-500 text-lg">We'd love to hear from you. Reach out for admissions, queries, or anything else.</p>
+      {/* Hero with background image */}
+      <section className="relative overflow-hidden py-28 px-6 text-center">
+        <img
+          src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1400&h=500&fit=crop"
+          alt="Contact Us"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-indigo-900/70" />
+        <div className="relative max-w-2xl mx-auto">
+          <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-full uppercase tracking-wide backdrop-blur-sm">Get in Touch</span>
+          <h1 className="text-4xl font-extrabold text-white mb-4">Contact Us</h1>
+          <p className="text-indigo-200 text-lg">We'd love to hear from you. Reach out for admissions, queries, or anything else.</p>
         </div>
       </section>
 
@@ -79,9 +85,18 @@ export default function PublicContact() {
               </div>
             </div>
 
-            {/* Map placeholder */}
-            <div className="mt-8 rounded-xl bg-slate-100 h-48 flex items-center justify-center text-slate-400 text-sm border border-slate-200">
-              📍 Google Maps — Surat, Gujarat
+            {/* Google Maps embed */}
+            <div className="mt-8 rounded-xl overflow-hidden border border-slate-200 h-48">
+              <iframe
+                title="CampusNex Location"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3719.8!2d72.8311!3d21.1702!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be04e59411d1563%3A0xfe4558290938b042!2sSurat%2C%20Gujarat!5e0!3m2!1sen!2sin!4v1700000000000"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
             </div>
           </div>
 

@@ -25,12 +25,18 @@ export default function PublicFaculty() {
 
   return (
     <PublicLayout>
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-indigo-50 to-white py-20 px-6 text-center">
-        <div className="max-w-2xl mx-auto">
-          <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded-full uppercase tracking-wide">Our Team</span>
-          <h1 className="text-4xl font-extrabold text-slate-900 mb-4">Expert Faculty</h1>
-          <p className="text-slate-500 text-lg">Experienced educators dedicated to your academic success.</p>
+      {/* Hero with background image */}
+      <section className="relative overflow-hidden py-28 px-6 text-center">
+        <img
+          src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=1400&h=500&fit=crop"
+          alt="Faculty"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-indigo-900/70" />
+        <div className="relative max-w-2xl mx-auto">
+          <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-full uppercase tracking-wide backdrop-blur-sm">Our Team</span>
+          <h1 className="text-4xl font-extrabold text-white mb-4">Expert Faculty</h1>
+          <p className="text-indigo-200 text-lg">Experienced educators dedicated to your academic success.</p>
         </div>
       </section>
 
