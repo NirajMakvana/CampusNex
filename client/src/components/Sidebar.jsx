@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import {
   GraduationCap, LayoutDashboard, Users, UserCheck, BookOpen,
   Calendar, ClipboardList, FileText, CreditCard, Library,
-  Home, Bell, BarChart2, LogOut, ChevronRight, Building2, CalendarOff
+  Home, Bell, BarChart2, LogOut, ChevronRight, Building2, CalendarOff,
+  ClipboardCheck
 } from 'lucide-react';
 
 const navItems = [
@@ -22,7 +23,8 @@ const navItems = [
   { label: 'Library', icon: Library, path: '/library', roles: ['superadmin', 'admin', 'faculty', 'student'] },
   { label: 'Hostel', icon: Home, path: '/hostel', roles: ['superadmin', 'admin', 'student'], requiresHostel: true },
   { label: 'Notices', icon: Bell, path: '/notices', roles: ['superadmin', 'admin', 'faculty', 'student'] },
-  { label: 'Leave', icon: CalendarOff, path: '/leaves', roles: ['superadmin', 'admin', 'faculty'] },
+  { label: 'Leave', icon: CalendarOff, path: '/leaves', roles: ['superadmin', 'admin', 'faculty', 'student'] },
+  { label: 'Admissions', icon: ClipboardCheck, path: '/admissions-admin', roles: ['superadmin', 'admin'] },
   { label: 'Reports', icon: BarChart2, path: '/reports', roles: ['superadmin', 'admin'] },
 ];
 

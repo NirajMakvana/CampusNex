@@ -34,6 +34,8 @@ import PublicContact from './pages/public/PublicContact';
 import ApplyForm from './pages/public/ApplyForm';
 import TrackApplication from './pages/public/TrackApplication';
 
+import AdminAdmissions from './pages/AdminAdmissions';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -72,6 +74,9 @@ export default function App() {
               <ProtectedRoute roles={['admin', 'superadmin']}><Reports /></ProtectedRoute>
             } />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/admissions-admin" element={
+              <ProtectedRoute roles={['admin', 'superadmin']}><AdminAdmissions /></ProtectedRoute>
+            } />
           </Route>
 
           <Route path="*" element={<NotFound />} />
