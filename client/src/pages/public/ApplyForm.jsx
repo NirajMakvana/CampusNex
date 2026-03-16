@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, ChevronRight, ChevronLeft, Upload } from 'lucide-react';
+import { CheckCircle2, ChevronRight, ChevronLeft, Upload, CreditCard, Smartphone, Building2, Lock } from 'lucide-react';
 import PublicLayout from '../../components/public/PublicLayout';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 
-const STEPS = ['Personal Info', 'Academic Info', 'Course & Docs', 'Review & Submit'];
+const STEPS = ['Personal Info', 'Academic Info', 'Course & Docs', 'Payment & Submit'];
 
 const initialPersonal = { name: '', dob: '', gender: '', mobile: '', email: '', address: { street: '', city: '', state: '', pin: '' }, category: 'General', nationality: 'Indian', religion: '' };
 const initialAcademic = { board: '', school: '', passingYear: '', percentage: '', stream: '', subjects: '', tenth: { board: '', school: '', passingYear: '', percentage: '' } };
@@ -19,6 +19,13 @@ export default function ApplyForm() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('upi');
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentDone, setPaymentDone] = useState(false);
+  const [upiId, setUpiId] = useState('');
+  const [cardNo, setCardNo] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
 
   useEffect(() => {
     axios.get('/api/public/admission-settings').then(r => setSettings(r.data.data)).catch(() => {});
@@ -30,6 +37,25 @@ export default function ApplyForm() {
   const setTenth = (field, val) => setAcademic(a => ({ ...a, tenth: { ...a.tenth, [field]: val } }));
 
   const handleFileChange = (field, file) => setFiles(f => ({ ...f, [field]: file }));
+
+  // Simulate payment — 2 second processing, then submit
+  const handlePayAndSubmit = async () => {
+    // Basic validation
+    if (paymentMethod === 'upi' && !upiId.includes('@')) {
+      toast.error('Enter a valid UPI ID (e.g. name@upi)'); return;
+    }
+    if (paymentMethod === 'card' && (cardNo.replace(/\s/g, '').length < 16 || !cardExpiry || !cardCvv)) {
+      toast.error('Enter valid card details'); return;
+    }
+
+    setPaymentProcessing(true);
+    // Simulate payment gateway processing
+    await new Promise(r => setTimeout(r, 2500));
+    setPaymentProcessing(false);
+    setPaymentDone(true);
+    await new Promise(r => setTimeout(r, 800));
+    await handleSubmit();
+  };
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -66,17 +92,33 @@ export default function ApplyForm() {
   }
 
   if (submitted) {
+    const fakeTxnId = `TXN${Date.now().toString().slice(-10)}`;
     return (
       <PublicLayout>
         <div className="min-h-[70vh] flex items-center justify-center px-6">
           <div className="text-center max-w-md">
             <CheckCircle2 size={56} className="text-emerald-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Application Submitted!</h2>
-            <p className="text-slate-500 mb-4">Your application has been received. A confirmation email has been sent.</p>
-            <div className="bg-indigo-50 rounded-xl p-5 mb-6">
+            <p className="text-slate-500 mb-4">Payment successful. Your application has been received and a confirmation email has been sent.</p>
+            <div className="bg-indigo-50 rounded-xl p-5 mb-3">
               <div className="text-xs text-slate-500 mb-1">Your Application ID</div>
               <div className="text-2xl font-extrabold text-indigo-600">{submitted.applicationId}</div>
               <div className="text-xs text-slate-400 mt-1">Save this ID to track your application</div>
+            </div>
+            <div className="bg-emerald-50 rounded-xl p-4 mb-6 text-left">
+              <div className="text-xs text-slate-500 mb-1">Payment Details</div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Amount Paid</span>
+                <span className="font-semibold text-emerald-700">₹{settings?.applicationFee || 300}</span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-slate-500">Transaction ID</span>
+                <span className="font-mono text-xs text-slate-700">{fakeTxnId}</span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-slate-500">Status</span>
+                <span className="text-emerald-600 font-medium">✓ Success</span>
+              </div>
             </div>
             <a href="/admissions/track" className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors text-sm">
               Track Application <ChevronRight size={14} />
@@ -214,38 +256,114 @@ export default function ApplyForm() {
               </div>
             )}
 
-            {/* Step 4 — Review */}
+            {/* Step 4 — Payment */}
             {step === 3 && (
               <div className="space-y-5">
-                <h2 className="font-semibold text-slate-800 mb-4">Review & Submit</h2>
-                <ReviewSection title="Personal Info">
-                  <ReviewRow label="Name" value={personal.name} />
-                  <ReviewRow label="DOB" value={personal.dob} />
-                  <ReviewRow label="Gender" value={personal.gender} />
-                  <ReviewRow label="Mobile" value={personal.mobile} />
-                  <ReviewRow label="Email" value={personal.email} />
-                  <ReviewRow label="Category" value={personal.category} />
-                  <ReviewRow label="City" value={personal.address.city} />
-                </ReviewSection>
-                <ReviewSection title="Academic Info">
-                  <ReviewRow label="Board (12th)" value={academic.board} />
-                  <ReviewRow label="Percentage" value={`${academic.percentage}%`} />
-                  <ReviewRow label="Stream" value={academic.stream} />
-                  <ReviewRow label="Passing Year" value={academic.passingYear} />
-                </ReviewSection>
-                <ReviewSection title="Course Preference">
-                  {coursePreference.filter(c => c.program).map(c => (
-                    <ReviewRow key={c.rank} label={`Preference ${c.rank}`} value={c.program} />
-                  ))}
-                </ReviewSection>
-                <ReviewSection title="Documents">
-                  {['photo', 'marksheet12', 'marksheet10', 'aadhar', 'categoryCert'].map(k => files[k] && (
-                    <ReviewRow key={k} label={k} value={files[k].name} />
-                  ))}
-                </ReviewSection>
-                {settings?.applicationFee && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-                    Application Fee: <strong>₹{settings.applicationFee}</strong> — Payment will be collected after submission.
+                <h2 className="font-semibold text-slate-800 mb-1">Application Fee Payment</h2>
+                <p className="text-sm text-slate-500 mb-4">Pay the application fee to submit your application.</p>
+
+                {/* Fee summary */}
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-slate-500">Application Fee</div>
+                    <div className="text-2xl font-extrabold text-indigo-600">₹{settings?.applicationFee || 300}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">Non-refundable • Academic Year 2025–26</div>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-full border border-emerald-200">
+                    <Lock size={11} /> Secure Payment
+                  </div>
+                </div>
+
+                {/* Application summary */}
+                <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-sm space-y-1.5">
+                  <div className="flex justify-between"><span className="text-slate-500">Applicant</span><span className="font-medium text-slate-800">{personal.name}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Program</span><span className="font-medium text-slate-800">{coursePreference.find(c => c.program)?.program || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Email</span><span className="font-medium text-slate-800">{personal.email}</span></div>
+                </div>
+
+                {/* Payment method tabs */}
+                <div>
+                  <p className="text-sm font-medium text-slate-700 mb-3">Select Payment Method</p>
+                  <div className="flex gap-2 mb-4">
+                    {[
+                      { id: 'upi', label: 'UPI', icon: Smartphone },
+                      { id: 'card', label: 'Card', icon: CreditCard },
+                      { id: 'netbanking', label: 'Net Banking', icon: Building2 },
+                    ].map(({ id, label, icon: Icon }) => (
+                      <button key={id} onClick={() => setPaymentMethod(id)}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border transition-colors ${
+                          paymentMethod === id ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-200 text-slate-600 hover:border-indigo-300'
+                        }`}>
+                        <Icon size={15} /> {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* UPI */}
+                  {paymentMethod === 'upi' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">UPI ID</label>
+                        <input value={upiId} onChange={e => setUpiId(e.target.value)}
+                          placeholder="yourname@upi / yourname@okaxis"
+                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400" />
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        {['GPay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
+                          <span key={app} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600">{app}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Card */}
+                  {paymentMethod === 'card' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Card Number</label>
+                        <input value={cardNo} onChange={e => setCardNo(e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim().slice(0, 19))}
+                          placeholder="1234 5678 9012 3456" maxLength={19}
+                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 font-mono tracking-widest" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Expiry (MM/YY)</label>
+                          <input value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} placeholder="12/27" maxLength={5}
+                            className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">CVV</label>
+                          <input value={cardCvv} onChange={e => setCardCvv(e.target.value)} placeholder="•••" maxLength={3} type="password"
+                            className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Net Banking */}
+                  {paymentMethod === 'netbanking' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {['SBI', 'HDFC', 'ICICI', 'Axis', 'Kotak', 'PNB', 'BOB', 'Canara'].map(bank => (
+                        <button key={bank} className="px-3 py-2.5 text-sm border border-slate-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors text-slate-700 font-medium">
+                          {bank}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Processing overlay */}
+                {paymentProcessing && (
+                  <div className="flex flex-col items-center gap-3 py-6">
+                    <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm font-medium text-slate-700">Processing payment...</p>
+                    <p className="text-xs text-slate-400">Please do not close this window</p>
+                  </div>
+                )}
+
+                {paymentDone && !paymentProcessing && (
+                  <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-sm text-emerald-700">
+                    <CheckCircle2 size={16} /> Payment successful! Submitting application...
                   </div>
                 )}
               </div>
@@ -269,11 +387,11 @@ export default function ApplyForm() {
                 </button>
               ) : (
                 <button
-                  onClick={handleSubmit}
-                  disabled={loading}
+                  onClick={handlePayAndSubmit}
+                  disabled={loading || paymentProcessing || paymentDone}
                   className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-60"
                 >
-                  {loading ? 'Submitting...' : 'Submit Application'}
+                  {paymentProcessing ? 'Processing...' : loading ? 'Submitting...' : `Pay ₹${settings?.applicationFee || 300} & Submit`}
                 </button>
               )}
             </div>

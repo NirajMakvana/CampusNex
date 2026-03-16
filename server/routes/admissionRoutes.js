@@ -4,7 +4,7 @@ const { protect, authorize } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const {
   getPublicStats, getPublicAdmissionSettings, getPublicNotices, getPublicDepartments, getPublicFaculty,
-  submitContact, submitApplication, trackApplication, createPaymentOrder, verifyPayment,
+  submitContact, submitApplication, trackApplication, simulatePayment,
   getApplications, getApplication, updateApplicationStatus, getMeritList,
   getSettings, createSettings, updateSettings,
   getContactMessages, markContactRead,
@@ -28,8 +28,7 @@ router.post('/apply', upload.fields([
 ]), submitApplication);
 
 router.post('/track', trackApplication);
-router.post('/payment/order', createPaymentOrder);
-router.post('/payment/verify', verifyPayment);
+router.post('/payment/simulate', simulatePayment);
 
 // ── Admin routes ──────────────────────────────────────────────────────────────
 router.get('/', protect, authorize('admin', 'superadmin'), getApplications);

@@ -139,71 +139,24 @@ const trackApplication = asyncHandler(async (req, res) => {
   res.json({ success: true, data: app });
 });
 
-// POST /api/admissions/payment/order  — create Razorpay order for application fee
-const createPaymentOrder = asyncHandler(async (req, res) => {
+// POST /api/admissions/payment/simulate  — simulated payment (no real gateway)
+const simulatePayment = asyncHandler(async (req, res) => {
   const { applicationId, type } = req.body; // type: 'application' | 'confirmation'
   const application = await Application.findOne({ applicationId });
   if (!application) { res.status(404); throw new Error('Application not found'); }
 
-  const Razorpay = require('razorpay');
-  const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-  });
+  const feeField = type === 'confirmation' ? 'confirmationFee' : 'applicationFee';
+  application[feeField].status = 'paid';
+  application[feeField].paidAt = new Date();
+  application[feeField].razorpayPaymentId = `SIM_TXN_${Date.now()}`;
 
-  const settings = await AdmissionSettings.findOne({ academicYear: application.academicYear });
-  const amount = type === 'confirmation' ? settings.confirmationFee : settings.applicationFee;
-
-  const order = await razorpay.orders.create({
-    amount: amount * 100, // paise
-    currency: 'INR',
-    receipt: `${applicationId}-${type}`,
-  });
-
-  // Save orderId
-  if (type === 'confirmation') {
-    application.confirmationFee.razorpayOrderId = order.id;
-    application.confirmationFee.amount = amount;
-  } else {
-    application.applicationFee.razorpayOrderId = order.id;
-    application.applicationFee.amount = amount;
-  }
-  await application.save();
-
-  res.json({ success: true, data: { orderId: order.id, amount, currency: 'INR', keyId: process.env.RAZORPAY_KEY_ID } });
-});
-
-// POST /api/admissions/payment/verify
-const verifyPayment = asyncHandler(async (req, res) => {
-  const { applicationId, type, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
-  const crypto = require('crypto');
-
-  const expectedSig = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-    .digest('hex');
-
-  if (expectedSig !== razorpaySignature) {
-    res.status(400); throw new Error('Payment verification failed');
-  }
-
-  const application = await Application.findOne({ applicationId });
-  if (!application) { res.status(404); throw new Error('Application not found'); }
-
-  if (type === 'confirmation') {
-    application.confirmationFee.status = 'paid';
-    application.confirmationFee.razorpayPaymentId = razorpayPaymentId;
-    application.confirmationFee.paidAt = new Date();
-  } else {
-    application.applicationFee.status = 'paid';
-    application.applicationFee.razorpayPaymentId = razorpayPaymentId;
-    application.applicationFee.paidAt = new Date();
+  if (type !== 'confirmation') {
     application.status = 'under-review';
     application.statusUpdatedAt = new Date();
   }
   await application.save();
 
-  res.json({ success: true, message: 'Payment verified successfully', status: application.status });
+  res.json({ success: true, message: 'Payment recorded', status: application.status });
 });
 
 // ─── ADMIN ROUTES ─────────────────────────────────────────────────────────────
@@ -386,7 +339,7 @@ const markContactRead = asyncHandler(async (req, res) => {
 
 module.exports = {
   getPublicStats, getPublicAdmissionSettings, getPublicNotices, getPublicDepartments, getPublicFaculty,
-  submitContact, submitApplication, trackApplication, createPaymentOrder, verifyPayment,
+  submitContact, submitApplication, trackApplication, simulatePayment,
   getApplications, getApplication, updateApplicationStatus, getMeritList,
   getSettings, createSettings, updateSettings,
   getContactMessages, markContactRead,
