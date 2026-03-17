@@ -7,7 +7,7 @@ import {
   GraduationCap, LayoutDashboard, Users, UserCheck, BookOpen,
   Calendar, ClipboardList, FileText, CreditCard, Library,
   Home, Bell, BarChart2, LogOut, ChevronRight, Building2, CalendarOff,
-  ClipboardCheck
+  ClipboardCheck, Star, Globe
 } from 'lucide-react';
 
 const navItems = [
@@ -25,7 +25,9 @@ const navItems = [
   { label: 'Notices', icon: Bell, path: '/notices', roles: ['superadmin', 'admin', 'faculty', 'student'] },
   { label: 'Leave', icon: CalendarOff, path: '/leaves', roles: ['superadmin', 'admin', 'faculty', 'student'] },
   { label: 'Admissions', icon: ClipboardCheck, path: '/admissions-admin', roles: ['superadmin', 'admin'] },
+  { label: 'Testimonials', icon: Star, path: '/testimonials', roles: ['superadmin', 'admin'] },
   { label: 'Reports', icon: BarChart2, path: '/reports', roles: ['superadmin', 'admin'] },
+  { label: 'Website Settings', icon: Globe, path: '/website-settings', roles: ['superadmin', 'admin'] },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {

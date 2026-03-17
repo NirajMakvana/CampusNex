@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Search, Eye, RefreshCw, Download } from 'lucide-react';
+import { Search, Eye, RefreshCw, Download, Users, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 
@@ -22,6 +22,7 @@ export default function ApplicationsTab({ onView }) {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
+  const [stats, setStats] = useState({ total: 0, pending: 0, shortlisted: 0, confirmed: 0, rejected: 0 });
 
   const fetchApps = useCallback(async () => {
     setLoading(true);
@@ -29,10 +30,14 @@ export default function ApplicationsTab({ onView }) {
       const params = { page, limit: 15 };
       if (status !== 'all') params.status = status;
       if (search) params.search = search;
-      const res = await api.get('/admissions', { params });
-      setApps(res.data.data);
-      setTotal(res.data.count);
-      setPages(res.data.pages);
+      const [appsRes, statsRes] = await Promise.all([
+        api.get('/admissions', { params }),
+        api.get('/admissions/admin-stats'),
+      ]);
+      setApps(appsRes.data.data);
+      setTotal(appsRes.data.count);
+      setPages(appsRes.data.pages);
+      setStats(statsRes.data.data);
     } catch {
       toast.error('Failed to load applications');
     } finally {
@@ -63,6 +68,26 @@ export default function ApplicationsTab({ onView }) {
 
   return (
     <div className="space-y-4">
+      {/* KPI Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Applications', value: stats.total, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          { label: 'Shortlisted', value: stats.shortlisted, icon: CheckCircle2, color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'Confirmed', value: stats.confirmed, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Rejected', value: stats.rejected, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center shrink-0`}>
+              <Icon size={18} className={color} />
+            </div>
+            <div>
+              <div className={`text-xl font-bold ${color}`}>{value}</div>
+              <div className="text-xs text-slate-500">{label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="flex gap-2 flex-wrap">

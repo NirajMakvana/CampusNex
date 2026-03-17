@@ -3,6 +3,8 @@ const Attendance = require('../models/Attendance');
 const Student = require('../models/Student');
 const Course = require('../models/Course');
 
+const LOW_ATTENDANCE_THRESHOLD = 0.75; // 75%
+
 // @route POST /api/attendance/mark  — bulk mark for a class
 const markAttendance = asyncHandler(async (req, res) => {
   const { courseId, date, records } = req.body;
@@ -145,7 +147,6 @@ const getCourseAttendanceReport = asyncHandler(async (req, res) => {
 
 // @route GET /api/attendance/stats — admin overview
 const getAttendanceStats = asyncHandler(async (req, res) => {
-  const User = require('../models/User');
 
   // Selected date (defaults to today) — parse as UTC to match how dates are stored
   const dateStr = req.query.date || new Date().toISOString().split('T')[0];
@@ -171,7 +172,7 @@ const getAttendanceStats = asyncHandler(async (req, res) => {
   // At-risk: unique students with < 75% in any course
   const atRiskAgg = await Attendance.aggregate([
     { $group: { _id: { student: '$student', course: '$course' }, total: { $sum: 1 }, present: { $sum: { $cond: [{ $in: ['$status', ['present', 'late']] }, 1, 0] } } } },
-    { $match: { total: { $gt: 0 }, $expr: { $lt: [{ $divide: ['$present', '$total'] }, 0.75] } } },
+    { $match: { total: { $gt: 0 }, $expr: { $lt: [{ $divide: ['$present', '$total'] }, LOW_ATTENDANCE_THRESHOLD] } } },
   ]);
   const atRiskCount = new Set(atRiskAgg.map(r => r._id.student?.toString())).size;
 
@@ -188,33 +189,24 @@ const getAttendanceStats = asyncHandler(async (req, res) => {
     present: c.present,
   }));
 
-  // Low attendance detail list
+  // Low attendance detail list — uses $lookup to avoid N+1 queries
   const studentAgg = await Attendance.aggregate([
     { $group: { _id: { student: '$student', course: '$course' }, total: { $sum: 1 }, present: { $sum: { $cond: [{ $in: ['$status', ['present', 'late']] }, 1, 0] } } } },
-    { $match: { total: { $gt: 0 }, $expr: { $lt: [{ $divide: ['$present', '$total'] }, 0.75] } } },
+    { $match: { total: { $gt: 0 }, $expr: { $lt: [{ $divide: ['$present', '$total'] }, LOW_ATTENDANCE_THRESHOLD] } } },
     { $lookup: { from: 'students', localField: '_id.student', foreignField: '_id', as: 'studentData' } },
+    { $lookup: { from: 'users', localField: 'studentData.userId', foreignField: '_id', as: 'userData' } },
     { $lookup: { from: 'courses', localField: '_id.course', foreignField: '_id', as: 'courseData' } },
     { $sort: { present: 1 } },
     { $limit: 20 },
   ]);
 
-  const lowAttendance = await Promise.all(
-    studentAgg.map(async (r) => {
-      const studentDoc = r.studentData?.[0];
-      let studentName = 'Unknown';
-      if (studentDoc?.userId) {
-        const userDoc = await User.findById(studentDoc.userId).select('name').lean();
-        studentName = userDoc?.name || 'Unknown';
-      }
-      return {
-        studentName,
-        courseName: r.courseData?.[0]?.name || 'Unknown',
-        present: r.present,
-        total: r.total,
-        percentage: r.total > 0 ? ((r.present / r.total) * 100).toFixed(1) : '0.0',
-      };
-    })
-  );
+  const lowAttendance = studentAgg.map((r) => ({
+    studentName: r.userData?.[0]?.name || 'Unknown',
+    courseName: r.courseData?.[0]?.name || 'Unknown',
+    present: r.present,
+    total: r.total,
+    percentage: r.total > 0 ? ((r.present / r.total) * 100).toFixed(1) : '0.0',
+  }));
 
   res.json({
     success: true,

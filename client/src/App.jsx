@@ -35,6 +35,8 @@ import ApplyForm from './pages/public/ApplyForm';
 import TrackApplication from './pages/public/TrackApplication';
 
 import AdminAdmissions from './pages/AdminAdmissions';
+import Testimonials from './pages/Testimonials';
+import ManageWebsite from './pages/ManageWebsite';
 
 export default function App() {
   return (
@@ -77,9 +79,13 @@ export default function App() {
             <Route path="/admissions-admin" element={
               <ProtectedRoute roles={['admin', 'superadmin']}><AdminAdmissions /></ProtectedRoute>
             } />
+            <Route path="/testimonials" element={
+              <ProtectedRoute roles={['admin', 'superadmin']}><Testimonials /></ProtectedRoute>
+            } />
+            <Route path="/website-settings" element={
+              <ProtectedRoute roles={['admin', 'superadmin']}><ManageWebsite /></ProtectedRoute>
+            } />
           </Route>
-
-          <Route path="*" element={<NotFound />} />
 
           {/* Public website routes */}
           <Route path="/home" element={<PublicHome />} />
@@ -91,6 +97,8 @@ export default function App() {
           <Route path="/faculty-info" element={<PublicFaculty />} />
           <Route path="/campus-life" element={<PublicCampusLife />} />
           <Route path="/contact" element={<PublicContact />} />
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

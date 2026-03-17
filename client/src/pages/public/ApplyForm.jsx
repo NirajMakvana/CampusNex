@@ -27,8 +27,19 @@ export default function ApplyForm() {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
 
+  const [availablePrograms, setAvailablePrograms] = useState([]);
+
   useEffect(() => {
-    axios.get('/api/public/admission-settings').then(r => setSettings(r.data.data)).catch(() => {});
+    // Fetch admission settings and available programs in parallel
+    Promise.all([
+      axios.get('/public/admission-settings'),
+      axios.get('/public/programs')
+    ]).then(([settingsRes, programsRes]) => {
+      setSettings(settingsRes.data.data);
+      setAvailablePrograms(programsRes.data.data || []);
+    }).catch((err) => {
+      console.error('Error fetching form data:', err);
+    });
   }, []);
 
   const setP = (field, val) => setPersonal(p => ({ ...p, [field]: val }));
@@ -36,7 +47,37 @@ export default function ApplyForm() {
   const setA = (field, val) => setAcademic(a => ({ ...a, [field]: val }));
   const setTenth = (field, val) => setAcademic(a => ({ ...a, tenth: { ...a.tenth, [field]: val } }));
 
-  const handleFileChange = (field, file) => setFiles(f => ({ ...f, [field]: file }));
+  const handleFileChange = (field, file) => {
+    if (file && file.size > 5 * 1024 * 1024) {
+      toast.error('File size cannot exceed 5MB');
+      return;
+    }
+    setFiles(f => ({ ...f, [field]: file }));
+  };
+
+  const validateStep = () => {
+    if (step === 0) {
+      if (!personal.name.trim()) { toast.error('Full name is required'); return false; }
+      if (!personal.dob) { toast.error('Date of birth is required'); return false; }
+      if (!personal.gender) { toast.error('Please select gender'); return false; }
+      if (!/^\d{10}$/.test(personal.mobile)) { toast.error('Enter a valid 10-digit mobile number'); return false; }
+      if (!/\S+@\S+\.\S+/.test(personal.email)) { toast.error('Enter a valid email address'); return false; }
+    }
+    if (step === 1) {
+      if (!academic.board.trim()) { toast.error('Board name is required'); return false; }
+      if (!academic.school.trim()) { toast.error('School/College name is required'); return false; }
+      if (!academic.passingYear) { toast.error('Passing year is required'); return false; }
+      if (!academic.percentage || academic.percentage < 0 || academic.percentage > 100) { toast.error('Enter a valid percentage (0–100)'); return false; }
+      if (!academic.stream) { toast.error('Please select stream'); return false; }
+    }
+    if (step === 2) {
+      if (!coursePreference.some(c => c.program)) { toast.error('Please select at least one course preference'); return false; }
+      if (!files.photo) { toast.error('Passport photo is required'); return false; }
+      if (!files.marksheet12) { toast.error('12th marksheet is required'); return false; }
+      if (!files.aadhar) { toast.error('Aadhar card is required'); return false; }
+    }
+    return true;
+  };
 
   // Simulate payment — 2 second processing, then submit
   const handlePayAndSubmit = async () => {
@@ -66,7 +107,7 @@ export default function ApplyForm() {
       formData.append('coursePreference', JSON.stringify(coursePreference.filter(c => c.program)));
       Object.entries(files).forEach(([key, file]) => { if (file) formData.append(key, file); });
 
-      const res = await axios.post('/api/admissions/apply', formData, {
+      const res = await axios.post('/admissions/apply', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setSubmitted(res.data.data);
@@ -76,6 +117,16 @@ export default function ApplyForm() {
       setLoading(false);
     }
   };
+
+  if (settings === null) {
+    return (
+      <PublicLayout>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </PublicLayout>
+    );
+  }
 
   if (!settings?.isOpen) {
     return (
@@ -97,7 +148,7 @@ export default function ApplyForm() {
       <PublicLayout>
         <div className="min-h-[70vh] flex items-center justify-center px-6">
           <div className="text-center max-w-md">
-            <CheckCircle2 size={56} className="text-emerald-500 mx-auto mb-4" />
+            <CheckCircle2 size={56} className="text-indigo-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Application Submitted!</h2>
             <p className="text-slate-500 mb-4">Payment successful. Your application has been received and a confirmation email has been sent.</p>
             <div className="bg-indigo-50 rounded-xl p-5 mb-3">
@@ -105,11 +156,11 @@ export default function ApplyForm() {
               <div className="text-2xl font-extrabold text-indigo-600">{submitted.applicationId}</div>
               <div className="text-xs text-slate-400 mt-1">Save this ID to track your application</div>
             </div>
-            <div className="bg-emerald-50 rounded-xl p-4 mb-6 text-left">
+            <div className="bg-indigo-50 rounded-xl p-4 mb-6 text-left">
               <div className="text-xs text-slate-500 mb-1">Payment Details</div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Amount Paid</span>
-                <span className="font-semibold text-emerald-700">₹{settings?.applicationFee || 300}</span>
+                <span className="font-semibold text-indigo-700">₹{settings?.applicationFee || 300}</span>
               </div>
               <div className="flex justify-between text-sm mt-1">
                 <span className="text-slate-500">Transaction ID</span>
@@ -117,7 +168,7 @@ export default function ApplyForm() {
               </div>
               <div className="flex justify-between text-sm mt-1">
                 <span className="text-slate-500">Status</span>
-                <span className="text-emerald-600 font-medium">✓ Success</span>
+                <span className="text-indigo-600 font-medium">✓ Success</span>
               </div>
             </div>
             <a href="/admissions/track" className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors text-sm">
@@ -143,12 +194,12 @@ export default function ApplyForm() {
             {STEPS.map((s, i) => (
               <div key={s} className="flex items-center flex-1">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
-                  i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'
+                  i < step ? 'bg-indigo-500 text-white' : i === step ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'
                 }`}>
                   {i < step ? '✓' : i + 1}
                 </div>
                 <div className={`hidden sm:block text-xs ml-2 font-medium ${i === step ? 'text-indigo-600' : 'text-slate-400'}`}>{s}</div>
-                {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 mx-2 ${i < step ? 'bg-emerald-400' : 'bg-slate-200'}`} />}
+                {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 mx-2 ${i < step ? 'bg-indigo-400' : 'bg-slate-200'}`} />}
               </div>
             ))}
           </div>
@@ -229,10 +280,12 @@ export default function ApplyForm() {
                         className="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400"
                       >
                         <option value="">Select Program</option>
-                        {(settings?.programs?.length
-                          ? settings.programs.map(p => p.name)
-                          : ['BCA', 'BBA', 'BSc IT']
-                        ).map(p => <option key={p}>{p}</option>)}
+                        {(availablePrograms.length 
+                          ? availablePrograms.map(p => p.name)
+                          : settings?.programs?.length
+                            ? settings.programs.map(p => p.name)
+                            : ['BCA', 'BBA', 'BSc IT']
+                        ).map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
                   ))}
@@ -272,7 +325,7 @@ export default function ApplyForm() {
                     <div className="text-2xl font-extrabold text-indigo-600">₹{settings?.applicationFee || 300}</div>
                     <div className="text-xs text-slate-400 mt-0.5">Non-refundable • Academic Year 2025–26</div>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-full border border-emerald-200">
+                  <div className="flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-full border border-indigo-200">
                     <Lock size={11} /> Secure Payment
                   </div>
                 </div>
@@ -365,7 +418,7 @@ export default function ApplyForm() {
                 )}
 
                 {paymentDone && !paymentProcessing && (
-                  <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-sm text-emerald-700">
+                  <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-xl border border-indigo-200 text-sm text-indigo-700">
                     <CheckCircle2 size={16} /> Payment successful! Submitting application...
                   </div>
                 )}
@@ -383,7 +436,7 @@ export default function ApplyForm() {
               </button>
               {step < STEPS.length - 1 ? (
                 <button
-                  onClick={() => setStep(s => s + 1)}
+                  onClick={() => { if (validateStep()) setStep(s => s + 1); }}
                   className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
                   Next <ChevronRight size={16} />
@@ -392,7 +445,7 @@ export default function ApplyForm() {
                 <button
                   onClick={handlePayAndSubmit}
                   disabled={loading || paymentProcessing || paymentDone}
-                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-60"
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60"
                 >
                   {paymentProcessing ? 'Processing...' : loading ? 'Submitting...' : `Pay ₹${settings?.applicationFee || 300} & Submit`}
                 </button>
@@ -420,21 +473,3 @@ function Field({ label, value, onChange, type = 'text', placeholder }) {
   );
 }
 
-function ReviewSection({ title, children }) {
-  return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
-      <div className="bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</div>
-      <div className="divide-y divide-slate-100">{children}</div>
-    </div>
-  );
-}
-
-function ReviewRow({ label, value }) {
-  if (!value) return null;
-  return (
-    <div className="flex px-4 py-2.5 text-sm">
-      <span className="text-slate-500 w-36 shrink-0 capitalize">{label}</span>
-      <span className="text-slate-800 font-medium">{value}</span>
-    </div>
-  );
-}

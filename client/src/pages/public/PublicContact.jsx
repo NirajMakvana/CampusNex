@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
 import PublicLayout from '../../components/public/PublicLayout';
 import axios from '../../api/axios';
@@ -7,12 +7,24 @@ import toast from 'react-hot-toast';
 export default function PublicContact() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState(null);
+
+  useEffect(() => {
+    axios.get('/website/public')
+      .then(res => setSettings(res.data.data))
+      .catch(() => {});
+  }, []);
+
+  const s = settings || {
+    address: { street: '123 College Road', city: 'Surat', state: 'Gujarat', pin: '395001' },
+    contact: { phone: '+91 98765 43210', email: 'admissions@campusnex.ac.in' },
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post('/api/public/contact', form);
+      await axios.post('/public/contact', form);
       toast.success('Message sent! We will get back to you soon.');
       setForm({ name: '', email: '', subject: '', message: '' });
     } catch (err) {
@@ -31,7 +43,7 @@ export default function PublicContact() {
           alt="Contact Us"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-indigo-900/70" />
+        <div className="absolute inset-0 bg-slate-900/70" />
         <div className="relative max-w-2xl mx-auto">
           <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-full uppercase tracking-wide backdrop-blur-sm">Get in Touch</span>
           <h1 className="text-4xl font-extrabold text-white mb-4">Contact Us</h1>
@@ -51,7 +63,7 @@ export default function PublicContact() {
                 </div>
                 <div>
                   <div className="font-medium text-slate-800 text-sm">Address</div>
-                  <div className="text-sm text-slate-500 mt-0.5">123 College Road, Surat, Gujarat — 395001</div>
+                  <div className="text-sm text-slate-500 mt-0.5">{s.address.street}, {s.address.city}, {s.address.state} — {s.address.pin}</div>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -60,7 +72,7 @@ export default function PublicContact() {
                 </div>
                 <div>
                   <div className="font-medium text-slate-800 text-sm">Phone</div>
-                  <div className="text-sm text-slate-500 mt-0.5">+91 98765 43210 | +91 98765 43211</div>
+                  <div className="text-sm text-slate-500 mt-0.5">{s.contact.phone}</div>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -69,7 +81,7 @@ export default function PublicContact() {
                 </div>
                 <div>
                   <div className="font-medium text-slate-800 text-sm">Email</div>
-                  <div className="text-sm text-slate-500 mt-0.5">admissions@campusnex.ac.in</div>
+                  <div className="text-sm text-slate-500 mt-0.5">{s.contact.email}</div>
                   <div className="text-sm text-slate-500">info@campusnex.ac.in</div>
                 </div>
               </div>

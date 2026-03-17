@@ -3,20 +3,21 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const {
-  getPublicStats, getPublicAdmissionSettings, getPublicNotices, getPublicDepartments, getPublicFaculty,
+  getPublicStats, getPublicAdmissionSettings, getPublicNotices, getPublicDepartments, getPublicPrograms, getPublicFaculty,
   submitContact, submitApplication, trackApplication, simulatePayment,
   getApplications, getApplication, updateApplicationStatus, getMeritList,
   getSettings, createSettings, updateSettings,
-  getContactMessages, markContactRead,
+  getContactMessages, markContactRead, getAdminStats,
 } = require('../controllers/admissionController');
 
 // ── Public (no auth) ──────────────────────────────────────────────────────────
-router.get('/public/stats', getPublicStats);
-router.get('/public/admission-settings', getPublicAdmissionSettings);
-router.get('/public/notices', getPublicNotices);
-router.get('/public/departments', getPublicDepartments);
-router.get('/public/faculty', getPublicFaculty);
-router.post('/public/contact', submitContact);
+router.get('/stats', getPublicStats);
+router.get('/admission-settings', getPublicAdmissionSettings);
+router.get('/notices', getPublicNotices);
+router.get('/departments', getPublicDepartments);
+router.get('/programs', getPublicPrograms);
+router.get('/faculty', getPublicFaculty);
+router.post('/contact', submitContact);
 
 // ── Application (public) ──────────────────────────────────────────────────────
 router.post('/apply', upload.fields([
@@ -31,6 +32,7 @@ router.post('/track', trackApplication);
 router.post('/payment/simulate', simulatePayment);
 
 // ── Admin routes ──────────────────────────────────────────────────────────────
+router.get('/admin-stats', protect, authorize('admin', 'superadmin'), getAdminStats);
 router.get('/', protect, authorize('admin', 'superadmin'), getApplications);
 router.get('/merit-list', protect, authorize('admin', 'superadmin'), getMeritList);
 router.get('/settings', protect, authorize('admin', 'superadmin'), getSettings);

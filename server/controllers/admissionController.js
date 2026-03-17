@@ -15,10 +15,18 @@ const logActivity = require('../utils/logActivity');
 const getPublicStats = asyncHandler(async (req, res) => {
   const [students, faculty, departments] = await Promise.all([
     Student.countDocuments({ isActive: true }),
-    require('../models/Faculty').countDocuments({ isActive: true }),
+    require('../models/Faculty').countDocuments({}),
     Department.countDocuments(),
   ]);
-  res.json({ success: true, data: { students, faculty, departments, yearsEstablished: new Date().getFullYear() - 2010 } });
+  res.json({ 
+    success: true, 
+    data: { 
+      students, 
+      faculty, 
+      departments, 
+      yearsEstablished: new Date().getFullYear() - 2010 
+    } 
+  });
 });
 
 // GET /api/public/admission-settings
@@ -43,14 +51,53 @@ const getPublicDepartments = asyncHandler(async (req, res) => {
   res.json({ success: true, data: departments });
 });
 
+// GET /api/public/programs - Get all programs with details
+const getPublicPrograms = asyncHandler(async (req, res) => {
+  const Course = require('../models/Course');
+  const { Fee: FeeModel, FeeStructure } = require('../models/Fee');
+
+  const departments = await Department.find({})
+    .select('name code totalSeats description')
+    .sort({ name: 1 });
+
+  // Fetch latest fee structures per department for annual fee display
+  const feeStructures = await FeeStructure.find({}).sort({ createdAt: -1 });
+  const feeMap = {};
+  feeStructures.forEach(f => {
+    const key = f.department?.toString();
+    if (key && !feeMap[key]) feeMap[key] = f.amount;
+  });
+
+  const programs = departments.map(dept => ({
+    name: dept.code,
+    fullName: dept.name,
+    seats: dept.totalSeats || 60,
+    duration: dept.code?.startsWith('M') ? '2 Years' : '3 Years',
+    eligibilityPercent: 45,
+    annualFees: feeMap[dept._id.toString()] || 30000,
+    description: dept.description || `Comprehensive ${dept.name} program`,
+  }));
+
+  res.json({ success: true, data: programs });
+});
+
 // GET /api/public/faculty
 const getPublicFaculty = asyncHandler(async (req, res) => {
   const Faculty = require('../models/Faculty');
+  
+  // Get all faculty with active user accounts
   const faculty = await Faculty.find()
+    .populate({
+      path: 'userId',
+      match: { isActive: true },
+      select: 'name avatar'
+    })
     .populate('department', 'name')
-    .populate('userId', 'name avatar')
     .select('userId department designation joiningDate');
-  res.json({ success: true, data: faculty });
+  
+  // Filter out faculty with null userId (inactive users)
+  const activeFaculty = faculty.filter(f => f.userId !== null);
+  res.json({ success: true, data: activeFaculty });
 });
 
 // POST /api/public/contact
@@ -75,13 +122,35 @@ const submitApplication = asyncHandler(async (req, res) => {
   const body = req.body;
   const files = req.files || {};
 
-  // Upload documents to Cloudinary
+  // Check if Cloudinary is properly configured
+  const cloudinaryConfigured =
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_CLOUD_NAME !== 'your_cloud_name' &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_KEY !== 'your_api_key';
+
+  // Upload documents to Cloudinary (only if configured)
   const documents = {};
   const docFields = ['photo', 'marksheet12', 'marksheet10', 'categoryCert', 'aadhar'];
-  for (const field of docFields) {
-    if (files[field] && files[field][0]) {
-      const result = await uploadToCloudinary(files[field][0].buffer, 'campusnex/admissions');
-      documents[field] = result.secure_url;
+  if (cloudinaryConfigured) {
+    for (const field of docFields) {
+      if (files[field] && files[field][0]) {
+        try {
+          const result = await uploadToCloudinary(files[field][0].buffer, 'campusnex/admissions');
+          documents[field] = result.secure_url;
+        } catch (uploadErr) {
+          console.warn(`Cloudinary upload failed for ${field}:`, uploadErr.message);
+          // Continue without this document — don't block submission
+        }
+      }
+    }
+  } else {
+    console.warn('Cloudinary not configured — skipping document uploads');
+    // Store placeholder so we know files were submitted
+    for (const field of docFields) {
+      if (files[field] && files[field][0]) {
+        documents[field] = `local:${files[field][0].originalname}`;
+      }
     }
   }
 
@@ -89,6 +158,14 @@ const submitApplication = asyncHandler(async (req, res) => {
   const personalInfo = typeof body.personalInfo === 'string' ? JSON.parse(body.personalInfo) : body.personalInfo;
   const academicInfo = typeof body.academicInfo === 'string' ? JSON.parse(body.academicInfo) : body.academicInfo;
   const coursePreference = typeof body.coursePreference === 'string' ? JSON.parse(body.coursePreference) : body.coursePreference;
+
+  // Data cleaning — remove empty strings for Number fields
+  if (academicInfo.passingYear === '' || academicInfo.passingYear === undefined) delete academicInfo.passingYear;
+  if (academicInfo.percentage === '' || academicInfo.percentage === undefined) delete academicInfo.percentage;
+  if (academicInfo.tenth) {
+    if (academicInfo.tenth.passingYear === '' || academicInfo.tenth.passingYear === undefined) delete academicInfo.tenth.passingYear;
+    if (academicInfo.tenth.percentage === '' || academicInfo.tenth.percentage === undefined) delete academicInfo.tenth.percentage;
+  }
 
   const application = await Application.create({
     personalInfo,
@@ -99,7 +176,7 @@ const submitApplication = asyncHandler(async (req, res) => {
     applicationFee: { amount: settings.applicationFee, status: 'pending' },
   });
 
-  // Send confirmation email
+  // Send confirmation email (non-blocking)
   try {
     await sendEmail({
       to: personalInfo.email,
@@ -176,15 +253,18 @@ const getApplications = asyncHandler(async (req, res) => {
     ];
   }
 
+  // Cap limit to max 500 to prevent abuse
+  const safeLimit = Math.min(Number(limit), 500);
+
   const total = await Application.countDocuments(filter);
   const applications = await Application.find(filter)
     .populate('allocatedProgram', 'name')
     .populate('reviewedBy', 'name')
     .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(Number(limit));
+    .skip((page - 1) * safeLimit)
+    .limit(safeLimit);
 
-  res.json({ success: true, count: total, pages: Math.ceil(total / limit), data: applications });
+  res.json({ success: true, count: total, pages: Math.ceil(total / safeLimit), data: applications });
 });
 
 // GET /api/admissions/:id
@@ -209,6 +289,14 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
   application.reviewedBy = req.user._id;
   if (adminRemarks) application.adminRemarks = adminRemarks;
   if (allocatedProgram) application.allocatedProgram = allocatedProgram;
+
+  // Push to status history
+  application.statusHistory.push({
+    status,
+    changedBy: req.user._id,
+    remark: adminRemarks || '',
+    changedAt: new Date(),
+  });
 
   // Auto-create student account on confirmation
   if (status === 'confirmed' && prevStatus !== 'confirmed') {
@@ -337,10 +425,21 @@ const markContactRead = asyncHandler(async (req, res) => {
   res.json({ success: true });
 });
 
+// GET /api/admissions/admin-stats — single call for dashboard KPIs
+const getAdminStats = asyncHandler(async (req, res) => {
+  const [total, shortlisted, confirmed, rejected] = await Promise.all([
+    Application.countDocuments({}),
+    Application.countDocuments({ status: 'shortlisted' }),
+    Application.countDocuments({ status: 'confirmed' }),
+    Application.countDocuments({ status: 'rejected' }),
+  ]);
+  res.json({ success: true, data: { total, shortlisted, confirmed, rejected, pending: total - confirmed - rejected } });
+});
+
 module.exports = {
-  getPublicStats, getPublicAdmissionSettings, getPublicNotices, getPublicDepartments, getPublicFaculty,
+  getPublicStats, getPublicAdmissionSettings, getPublicNotices, getPublicDepartments, getPublicPrograms, getPublicFaculty,
   submitContact, submitApplication, trackApplication, simulatePayment,
   getApplications, getApplication, updateApplicationStatus, getMeritList,
   getSettings, createSettings, updateSettings,
-  getContactMessages, markContactRead,
+  getContactMessages, markContactRead, getAdminStats,
 };

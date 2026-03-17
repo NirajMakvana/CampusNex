@@ -1,6 +1,8 @@
 # CampusNex — Campus Management System
 
-A full-stack campus management platform for colleges. Handles students, faculty, attendance, exams, fees, hostel, library, timetable, and more — all in one place.
+A full-stack campus management platform for colleges. Handles students, faculty, attendance, exams, fees, hostel, library, timetable, admissions, and more — all in one place.
+
+> Built with React 19 + Node.js/Express + MongoDB. Supports 4 roles: Super Admin, Admin, Faculty, Student — each with a tailored dashboard and access controls.
 
 ---
 
@@ -33,6 +35,8 @@ CampusNex/
 │   │   ├── components/      # Layout, Sidebar, ProtectedRoute, HodDashboard
 │   │   ├── context/         # AuthContext
 │   │   ├── pages/           # All page components
+│   │   │   ├── admissions/  # Admin admission tabs
+│   │   │   └── public/      # Public-facing website pages
 │   │   └── utils/           # PDF export helper
 │   └── vite.config.js
 └── server/                  # Express backend
@@ -190,9 +194,30 @@ node seedBBAHostelLibrary.js  # BBA hostel + library data
 | Library | ✅ | ✅ | — | ✅ (my books) |
 | Hostel | ✅ | ✅ | — | ✅ (if allocated) |
 | Notices | ✅ | ✅ | ✅ | ✅ |
-| Reports | ✅ | ✅ | — | — |
-| Profile | ✅ | ✅ | ✅ | ✅ |
 | Leave Requests | ✅ | ✅ | ✅ | — |
+| Reports | ✅ | ✅ | — | — |
+| Admissions (Admin) | ✅ | ✅ | — | — |
+| Testimonials | ✅ | ✅ | — | — |
+| Website Settings | ✅ | ✅ | — | — |
+| Profile | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+## Public Website Pages
+
+CampusNex includes a fully functional public-facing website (no login required):
+
+| Route | Page |
+|-------|------|
+| `/home` | Home — hero, stats, programs, testimonials |
+| `/about` | About — college info, principal's message |
+| `/courses-info` | Programs & courses listing |
+| `/admissions` | Admission info, eligibility, process |
+| `/admissions/apply` | Online application form |
+| `/admissions/track` | Track application status by ID |
+| `/faculty-info` | Faculty directory |
+| `/campus-life` | Hostel, library, activities |
+| `/contact` | Contact form + map |
 
 ---
 
@@ -202,20 +227,25 @@ All routes are prefixed with `/api`.
 
 | Prefix | Description |
 |--------|-------------|
-| `/api/auth` | Login, logout, forgot/reset password |
+| `/api/auth` | Login, logout, forgot/reset password, avatar, admin management |
 | `/api/students` | CRUD, bulk import, promote, avatar upload |
-| `/api/faculty` | CRUD, toggle status, avatar upload |
-| `/api/departments` | CRUD |
-| `/api/courses` | CRUD |
-| `/api/attendance` | Mark, view, stats |
+| `/api/faculty` | CRUD, toggle status, workload |
+| `/api/departments` | CRUD with student/faculty/course counts |
+| `/api/courses` | CRUD, syllabus upload, workload |
+| `/api/attendance` | Mark, view, monthly report, stats |
 | `/api/exams` | Schedules, results, marksheets, seating plans, revaluation |
-| `/api/fees` | Structures, bulk assign, defaulters, student fees |
-| `/api/notices` | CRUD, pin/unpin |
+| `/api/fees` | Structures, bulk assign, defaulters, student fees, stats |
+| `/api/notices` | CRUD, pin/unpin, attachments |
 | `/api/timetable` | CRUD with conflict detection |
-| `/api/library` | Books, issue/return, stats, my-issues |
+| `/api/library` | Books, issue/return, reservations, stats, my-issues |
 | `/api/hostel` | Rooms, allocate, transfer, maintenance, mess menu |
 | `/api/leaves` | Submit, approve/reject leave requests |
-| `/api/activity` | Activity log (admin) |
+| `/api/activity` | Activity log (admin audit trail) |
+| `/api/revaluation` | Revaluation requests (student) |
+| `/api/testimonials` | Testimonials management |
+| `/api/website` | College website settings (public + admin) |
+| `/api/admissions` | Applications, merit list, settings, contact messages |
+| `/api/public` | Public endpoints (stats, programs, faculty, notices) |
 | `/api/health` | Health check |
 
 ---
@@ -247,20 +277,26 @@ Update `vite.config.js` proxy target to your Render URL, or set `VITE_API_URL` a
 
 - Role-based access control (superadmin / admin / faculty / student)
 - HTTP-only cookie auth — no localStorage token exposure
-- Pagination on all list endpoints (students, faculty, books)
-- Student search across full dataset (not just current page)
-- Bulk student import via JSON
+- Public-facing college website with online admission form
+- Online application tracking by application ID
+- Admission merit list generation with CSV export
+- Pagination on all list endpoints (students, faculty, books, applications)
+- DB-level search for students (regex, not in-memory)
+- Bulk student import via CSV with preview
 - Semester promotion with guard rails
 - Attendance alerts via cron job (email to low-attendance students)
 - Fee due reminders via cron job
 - PDF receipt download for paid fees
-- Excel export for reports
-- Cloudinary avatar uploads
-- Timetable conflict detection
+- Excel export for attendance reports
+- Cloudinary avatar + document uploads
+- Timetable conflict detection (faculty double-booking)
 - Exam seating plan generation
 - Revaluation request workflow
-- HOD dashboard (faculty with HOD role)
+- HOD dashboard (faculty assigned as HOD)
 - Hostel room allocation, transfer, maintenance requests, mess menu
-- Library book issue/return with overdue tracking
+- Library book issue/return with overdue fine tracking + reservations
 - Activity log for admin audit trail
 - Winston logging to file (`logs/combined.log`, `logs/error.log`)
+- Singleton SMTP transporter (no new connection per email)
+- Atomic application ID generation (no race conditions)
+- Rate limiting + Helmet security headers

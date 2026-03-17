@@ -146,9 +146,15 @@ const changePassword = asyncHandler(async (req, res) => {
 const updateAvatar = asyncHandler(async (req, res) => {
   if (!req.file) { res.status(400); throw new Error('No file uploaded'); }
   const uploadToCloudinary = require('../utils/uploadToCloudinary');
-  const result = await uploadToCloudinary(req.file.buffer, 'campusnex/avatars');
-  await User.findByIdAndUpdate(req.user._id, { avatar: result.secure_url });
-  res.json({ success: true, url: result.secure_url });
+  let url;
+  try {
+    const result = await uploadToCloudinary(req.file.buffer, 'campusnex/avatars');
+    url = result.secure_url;
+  } catch (err) {
+    res.status(502); throw new Error('Image upload failed. Please try again.');
+  }
+  await User.findByIdAndUpdate(req.user._id, { avatar: url });
+  res.json({ success: true, url });
 });
 
 // @desc  Get all admins (superadmin only)

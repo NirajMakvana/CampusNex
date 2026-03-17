@@ -31,28 +31,44 @@ export default function Reports() {
     if (filterSem) params.semester = filterSem;
 
     Promise.all([
-      api.get('/students', { params }),
+      api.get('/students', { params: { ...params, limit: 1 } }), // just need count
       api.get('/faculty'),
       api.get('/departments'),
       api.get('/library/books'),
       api.get('/fees/stats'),
-    ]).then(([s, f, d, b, fee]) => {
+    ]).then(([s, f, d, fee, feeRes]) => {
+      const depts = d.data.data || [];
       setStats({
-        students: s.data.count || s.data.data?.length || 0,
+        students: s.data.count || 0,
         faculty: f.data.count || f.data.data?.length || 0,
-        departments: d.data.data?.length || 0,
-        books: b.data.count || 0,
+        departments: depts.length,
+        books: feeRes?.data?.count || 0,
       });
       setFeeStats(fee.data.data);
-      const depts = d.data.data || [];
-      const studentList = s.data.data || [];
-      const deptMap = {};
-      depts.forEach(dept => { deptMap[dept._id] = { name: dept.code, fullName: dept.name, students: 0 }; });
-      studentList.forEach(st => {
-        const dId = st.department?._id || st.department;
-        if (dId && deptMap[dId]) deptMap[dId].students++;
-      });
-      setDeptData(Object.values(deptMap).filter(d => d.students > 0));
+
+      // Use pre-aggregated studentCount from getDepartments — no need to fetch all students
+      const deptData = depts
+        .filter(dept => {
+          if (filterDept && dept._id !== filterDept) return false;
+          return true;
+        })
+        .map(dept => ({
+          name: dept.code,
+          fullName: dept.name,
+          students: dept.studentCount || 0,
+        }))
+        .filter(d => d.students > 0);
+
+      setDeptData(deptData);
+
+      // Re-fetch total student count with filters if needed
+      if (filterDept || filterSem) {
+        api.get('/students', { params: { ...params, limit: 1 } })
+          .then(r => setStats(prev => ({ ...prev, students: r.data.count || 0 })))
+          .catch(() => {});
+      } else {
+        setStats(prev => ({ ...prev, students: s.data.count || 0 }));
+      }
     }).catch(() => {}).finally(() => setLoading(false));
   }, [filterDept, filterSem]);
 

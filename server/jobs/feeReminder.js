@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const Fee = require('../models/Fee');
+const { Fee } = require('../models/Fee');
 const sendEmail = require('../utils/sendEmail');
 
 // Runs every Monday at 9 AM

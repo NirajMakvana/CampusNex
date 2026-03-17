@@ -63,8 +63,14 @@ app.use('/api/hostel', hostelRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/revaluation', require('./routes/revaluationRoutes'));
-app.use('/api/admissions', require('./routes/admissionRoutes'));
-app.use('/api/public', require('./routes/admissionRoutes')); // public stats/faculty/etc.
+app.use('/api/testimonials', require('./routes/testimonialRoutes'));
+app.use('/api/website', require('./routes/websiteRoutes'));
+
+// Admission routes - mounted at both /api/admissions (protected) and /api/public (public)
+// Note: Route-level auth in admissionRoutes.js ensures proper access control
+const admissionRoutes = require('./routes/admissionRoutes');
+app.use('/api/admissions', admissionRoutes);
+app.use('/api/public', admissionRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'CampusNex API running' }));
 

@@ -25,7 +25,7 @@ export default function PublicAdmissions() {
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
-    axios.get('/api/public/admission-settings').then(r => setSettings(r.data.data)).catch(() => {});
+    axios.get('/public/admission-settings').then(r => setSettings(r.data.data)).catch(() => {});
   }, []);
 
   return (
@@ -33,11 +33,11 @@ export default function PublicAdmissions() {
       {/* Hero with background image */}
       <section className="relative overflow-hidden py-28 px-6 text-center">
         <img
-          src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1400&h=500&fit=crop"
+          src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1400&h=500&fit=crop"
           alt="Admissions"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-indigo-900/75" />
+        <div className="absolute inset-0 bg-slate-900/75" />
         <div className="relative max-w-2xl mx-auto">
           <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-full uppercase tracking-wide backdrop-blur-sm">
             {settings?.isOpen ? '🟢 Admissions Open' : '🔴 Admissions Closed'}
@@ -91,13 +91,16 @@ export default function PublicAdmissions() {
       <section className="py-16 px-6 bg-slate-50">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
+            <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-indigo-50 text-indigo-600 rounded-full uppercase tracking-wider">How It Works</span>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Admission Process</h2>
             <p className="text-slate-500">Simple 4-step process to secure your seat.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {steps.map(s => (
-              <div key={s.num} className="bg-white rounded-xl border border-slate-200 p-5">
-                <div className="text-3xl font-extrabold text-indigo-100 mb-2">{s.num}</div>
+              <div key={s.num} className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md hover:border-indigo-200 transition-all">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center mb-3">
+                  <span className="text-white font-bold text-sm">{s.num}</span>
+                </div>
                 <h3 className="font-semibold text-slate-800 mb-1">{s.title}</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">{s.desc}</p>
               </div>
@@ -152,14 +155,14 @@ export default function PublicAdmissions() {
             <ul className="space-y-2">
               {(settings?.documentsRequired?.length ? settings.documentsRequired : docs).map(d => (
                 <li key={d} className="flex items-start gap-2 text-sm text-slate-600">
-                  <CheckCircle2 size={15} className="text-emerald-500 mt-0.5 shrink-0" />{d}
+                  <CheckCircle2 size={15} className="text-indigo-500 mt-0.5 shrink-0" />{d}
                 </li>
               ))}
             </ul>
           </div>
-          <div className="bg-indigo-600 rounded-xl p-6 text-white">
+          <div className="bg-slate-900 rounded-xl p-6 text-white">
             <h3 className="font-bold text-lg mb-3">Ready to Apply?</h3>
-            <p className="text-indigo-200 text-sm mb-5">Fill out the online application form and take the first step towards your future.</p>
+            <p className="text-slate-400 text-sm mb-5">Fill out the online application form and take the first step towards your future.</p>
             {settings?.isOpen ? (
               <Link to="/admissions/apply" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-600 font-semibold rounded-lg hover:bg-indigo-50 transition-colors text-sm">
                 Start Application <ArrowRight size={14} />

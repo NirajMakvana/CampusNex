@@ -22,10 +22,6 @@ export default function Faculty() {
   useEffect(() => {
     fetchFaculty();
     api.get('/departments').then(r => setDepartments(r.data.data || [])).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetchFaculty();
   }, [filterDept]);
 
   const fetchFaculty = async () => {

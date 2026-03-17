@@ -14,6 +14,7 @@ const { protect, authorize } = require('../middleware/auth');
 router.use(protect);
 router.get('/stats', authorize('admin', 'superadmin'), getAttendanceStats);
 router.post('/mark', authorize('faculty', 'admin', 'superadmin'), markAttendance);
+router.get('/student/me', getStudentAttendance);          // student fetches own attendance
 router.get('/student/:studentId/monthly', getMonthlyReport);
 router.get('/student/:id', getStudentAttendance);
 router.get('/course/:courseId/report', authorize('faculty', 'admin', 'superadmin'), getCourseAttendanceReport);

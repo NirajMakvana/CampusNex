@@ -12,30 +12,23 @@ const getStudents = asyncHandler(async (req, res) => {
   if (semester) filter.semester = Number(semester);
   if (batch) filter.batch = batch;
 
-  // Move search into DB filter for correct pagination — searches across ALL students, not just current page
-  if (search) {
-    // Fetch all students matching dept/sem/batch filters, then filter by name or enrollmentNo
-    const allStudents = await Student.find(filter)
-      .populate('userId', 'name email avatar isActive')
-      .populate('department', 'name code')
-      .sort({ createdAt: -1 });
-
-    const searchLower = search.toLowerCase();
-    const results = allStudents.filter(s =>
-      s.userId?.name?.toLowerCase().includes(searchLower) ||
-      s.enrollmentNo?.toLowerCase().includes(searchLower)
-    );
-
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(100, parseInt(limit) || 50);
-    const skip = (pageNum - 1) * limitNum;
-    const paginated = results.slice(skip, skip + limitNum);
-    return res.json({ success: true, count: results.length, page: pageNum, pages: Math.ceil(results.length / limitNum), data: paginated });
-  }
-
   const pageNum = Math.max(1, parseInt(page) || 1);
   const limitNum = Math.min(100, parseInt(limit) || 50);
   const skip = (pageNum - 1) * limitNum;
+
+  if (search) {
+    // First find matching users by name, then filter students
+    const matchingUsers = await User.find({
+      name: { $regex: search, $options: 'i' },
+      role: 'student',
+    }).select('_id');
+    const userIds = matchingUsers.map(u => u._id);
+
+    filter.$or = [
+      { userId: { $in: userIds } },
+      { enrollmentNo: { $regex: search, $options: 'i' } },
+    ];
+  }
 
   const total = await Student.countDocuments(filter);
   const students = await Student.find(filter)
@@ -75,6 +68,12 @@ const getStudent = asyncHandler(async (req, res) => {
 const updateStudent = asyncHandler(async (req, res) => {
   const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
   if (!student) { res.status(404); throw new Error('Student not found'); }
+
+  // Sync name to User if provided
+  if (req.body.name) {
+    await User.findByIdAndUpdate(student.userId, { name: req.body.name });
+  }
+
   res.json({ success: true, data: student });
 });
 
@@ -91,8 +90,16 @@ const deleteStudent = asyncHandler(async (req, res) => {
 // @route POST /api/students/:id/upload-avatar
 const uploadAvatar = asyncHandler(async (req, res) => {
   if (!req.file) { res.status(400); throw new Error('No file uploaded'); }
-  const result = await uploadToCloudinary(req.file.buffer, 'campusnex/avatars');
+
   const student = await Student.findById(req.params.id);
+  if (!student) { res.status(404); throw new Error('Student not found'); }
+
+  // Students can only update their own avatar
+  if (req.user.role === 'student' && student.userId.toString() !== req.user._id.toString()) {
+    res.status(403); throw new Error('Not authorized to update this avatar');
+  }
+
+  const result = await uploadToCloudinary(req.file.buffer, 'campusnex/avatars');
   await User.findByIdAndUpdate(student.userId, { avatar: result.secure_url });
   res.json({ success: true, url: result.secure_url });
 });

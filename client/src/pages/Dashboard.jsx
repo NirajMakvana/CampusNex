@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { Users, UserCheck, BookOpen, CreditCard, Bell, ClipboardList, GraduationCap, Library } from 'lucide-react';
+import { Users, UserCheck, BookOpen, Bell, ClipboardList, GraduationCap, Library, CreditCard, AlertTriangle, TrendingUp } from 'lucide-react';
 import HodDashboard from '../components/HodDashboard';
 
-const StatCard = ({ icon: Icon, label, value, color }) => (
+const StatCard = ({ icon: Icon, label, value, color, sub }) => (
   <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
       <Icon size={22} className="text-white" />
@@ -13,6 +13,7 @@ const StatCard = ({ icon: Icon, label, value, color }) => (
     <div>
       <p className="text-sm text-slate-500">{label}</p>
       <p className="text-2xl font-bold text-slate-800">{value ?? '—'}</p>
+      {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
     </div>
   </div>
 );
@@ -21,12 +22,11 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState({});
   const [notices, setNotices] = useState([]);
+  const [isHod, setIsHod] = useState(false);
 
   useEffect(() => {
-    // Fetch notices for all roles
     api.get('/notices').then(res => setNotices(res.data.data?.slice(0, 5) || [])).catch(() => {});
 
-    // Fetch stats for admin
     if (['admin', 'superadmin'].includes(user?.role)) {
       Promise.all([
         api.get('/students'),
@@ -42,6 +42,29 @@ export default function Dashboard() {
         });
       }).catch(() => {});
     }
+
+    if (user?.role === 'student') {
+      Promise.all([
+        api.get('/attendance/student/me').catch(() => ({ data: { data: [] } })),
+        api.get('/fees/student/me').catch(() => ({ data: { summary: null } })),
+      ]).then(([att, fee]) => {
+        const attData = att.data.data || [];
+        const overall = attData.length > 0
+          ? (attData.reduce((s, c) => s + parseFloat(c.percentage), 0) / attData.length).toFixed(1)
+          : null;
+        setStats({
+          attendance: overall,
+          feePending: fee.data.summary?.pending || 0,
+          feeStatus: fee.data.summary,
+        });
+      });
+    }
+
+    if (user?.role === 'faculty') {
+      api.get('/departments/my-department')
+        .then(() => setIsHod(true))
+        .catch(() => setIsHod(false));
+    }
   }, [user]);
 
   return (
@@ -53,13 +76,34 @@ export default function Dashboard() {
         <p className="text-slate-500 text-sm mt-1 capitalize">{user?.role} Portal — CampusNex</p>
       </div>
 
-      {/* Stats — Admin only */}
+      {/* Admin stats */}
       {['admin', 'superadmin'].includes(user?.role) && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={Users} label="Total Students" value={stats.students} color="bg-indigo-500" />
           <StatCard icon={UserCheck} label="Faculty Members" value={stats.faculty} color="bg-emerald-500" />
           <StatCard icon={BookOpen} label="Departments" value={stats.departments} color="bg-amber-500" />
           <StatCard icon={Library} label="Library Books" value={stats.books} color="bg-rose-500" />
+        </div>
+      )}
+
+      {/* Student personalized stats */}
+      {user?.role === 'student' && (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard
+            icon={ClipboardList}
+            label="Avg Attendance"
+            value={stats.attendance ? `${stats.attendance}%` : '—'}
+            color={stats.attendance && parseFloat(stats.attendance) < 75 ? 'bg-red-500' : 'bg-indigo-500'}
+            sub={stats.attendance && parseFloat(stats.attendance) < 75 ? 'Below 75% threshold' : 'Overall across courses'}
+          />
+          <StatCard
+            icon={CreditCard}
+            label="Fee Pending"
+            value={stats.feePending ? `₹${stats.feePending.toLocaleString()}` : '₹0'}
+            color={stats.feePending > 0 ? 'bg-amber-500' : 'bg-emerald-500'}
+            sub={stats.feePending > 0 ? 'Clear dues soon' : 'All clear'}
+          />
+          <StatCard icon={TrendingUp} label="Semester" value={user?.semester || '—'} color="bg-purple-500" sub="Current semester" />
         </div>
       )}
 
@@ -71,7 +115,7 @@ export default function Dashboard() {
           { label: 'Timetable', icon: GraduationCap, path: '/timetable', color: 'bg-green-50 text-green-600' },
           { label: 'Exams', icon: BookOpen, path: '/exams', color: 'bg-purple-50 text-purple-600' },
         ].map(({ label, icon: Icon, path, color }) => (
-          <Link key={path} to={path} className={`flex items-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:shadow-sm transition-shadow`}>
+          <Link key={path} to={path} className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:shadow-sm transition-shadow">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
               <Icon size={18} />
             </div>
@@ -80,8 +124,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* HOD Dashboard — faculty who are HOD */}
-      {user?.role === 'faculty' && <HodDashboard />}
+      {/* HOD Dashboard — only for faculty who are actually HODs */}
+      {user?.role === 'faculty' && isHod && <HodDashboard />}
 
       {/* Recent Notices */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">

@@ -27,9 +27,9 @@ const deleteFeeStructure = asyncHandler(async (req, res) => {
 
 // Student Fees
 const getStudentFees = asyncHandler(async (req, res) => {
-  // Student can only see their own fees
+  // Student can only see their own fees — always resolve from token
   let studentId = req.params.id;
-  if (req.user.role === 'student') {
+  if (req.user.role === 'student' || studentId === 'me') {
     const profile = await Student.findOne({ userId: req.user._id });
     if (!profile) { res.status(404); throw new Error('Student profile not found'); }
     studentId = profile._id.toString();
@@ -82,8 +82,17 @@ const markFeePaid = asyncHandler(async (req, res) => {
 });
 
 const applyDiscount = asyncHandler(async (req, res) => {
-  const fee = await Fee.findByIdAndUpdate(req.params.id, { discount: req.body.discount }, { new: true });
+  const discount = Number(req.body.discount);
+  if (isNaN(discount) || discount < 0) {
+    res.status(400); throw new Error('Discount must be a non-negative number');
+  }
+  const fee = await Fee.findById(req.params.id);
   if (!fee) { res.status(404); throw new Error('Not found'); }
+  if (discount > fee.amount) {
+    res.status(400); throw new Error('Discount cannot exceed fee amount');
+  }
+  fee.discount = discount;
+  await fee.save();
   res.json({ success: true, data: fee });
 });
 

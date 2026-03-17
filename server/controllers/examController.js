@@ -41,6 +41,13 @@ const deleteExam = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Exam deleted' });
 });
 
+const updateExam = asyncHandler(async (req, res) => {
+  const exam = await Exam.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    .populate({ path: 'course', populate: { path: 'department', select: 'name code' } });
+  if (!exam) { res.status(404); throw new Error('Exam not found'); }
+  res.json({ success: true, data: exam });
+});
+
 // Enter / update marks for a student
 const enterResult = asyncHandler(async (req, res) => {
   const { studentId, examId, marksObtained } = req.body;
@@ -174,4 +181,4 @@ const generateSeatingPlan = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getExams, createExam, deleteExam, enterResult, enterBulkResults, getStudentResults, getExamResults, generateSeatingPlan };
+module.exports = { getExams, createExam, deleteExam, updateExam, enterResult, enterBulkResults, getStudentResults, getExamResults, generateSeatingPlan };

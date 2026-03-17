@@ -50,13 +50,28 @@ const getAllLeaves = asyncHandler(async (req, res) => {
 const getDeptLeaves = asyncHandler(async (req, res) => {
   const me = await Faculty.findOne({ userId: req.user._id });
   if (!me) { res.status(404); throw new Error('Faculty profile not found'); }
+  
   const dept = await Department.findOne({ hod: me._id });
   if (!dept) return res.json({ success: true, data: [] });
-  const deptFaculty = await Faculty.find({ department: dept._id }).select('_id');
-  const ids = deptFaculty.map(f => f._id);
-  const leaves = await LeaveRequest.find({ faculty: { $in: ids } })
+  
+  const [deptFaculty, deptStudents] = await Promise.all([
+    Faculty.find({ department: dept._id }).select('_id'),
+    Student.find({ department: dept._id }).select('_id')
+  ]);
+  
+  const facultyIds = deptFaculty.map(f => f._id);
+  const studentIds = deptStudents.map(s => s._id);
+  
+  const leaves = await LeaveRequest.find({
+    $or: [
+      { faculty: { $in: facultyIds } },
+      { student: { $in: studentIds } }
+    ]
+  })
     .populate({ path: 'faculty', populate: { path: 'userId', select: 'name email' } })
+    .populate({ path: 'student', populate: { path: 'userId', select: 'name email' } })
     .sort({ createdAt: -1 });
+    
   res.json({ success: true, data: leaves });
 });
 
@@ -67,9 +82,14 @@ const updateLeaveStatus = asyncHandler(async (req, res) => {
     const me = await Faculty.findOne({ userId: req.user._id });
     const dept = await Department.findOne({ hod: me._id });
     if (!dept) { res.status(403); throw new Error('Not authorized'); }
-    const leave = await LeaveRequest.findById(req.params.id).populate('faculty');
-    const facultyDept = leave?.faculty?.department?.toString();
-    if (facultyDept && facultyDept !== dept._id.toString()) {
+    
+    const leave = await LeaveRequest.findById(req.params.id)
+      .populate('faculty')
+      .populate('student');
+      
+    const leaveDeptId = leave?.faculty?.department || leave?.student?.department;
+    
+    if (!leaveDeptId || leaveDeptId.toString() !== dept._id.toString()) {
       res.status(403); throw new Error('Not authorized for this department');
     }
   }

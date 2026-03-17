@@ -10,6 +10,16 @@ export default function Fees() {
   const isStudent = user?.role === 'student';
   const isAdmin = ['admin', 'superadmin'].includes(user?.role);
 
+  if (!isStudent && !isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <CreditCard size={48} className="text-slate-300 mb-4" />
+        <h2 className="text-lg font-semibold text-slate-600 mb-1">Fee Module Not Available</h2>
+        <p className="text-sm text-slate-400">This section is only accessible to students and administrators.</p>
+      </div>
+    );
+  }
+
   const [tab, setTab] = useState(isStudent ? 'My Fees' : 'Overview');
   const tabs = isAdmin
     ? ['Overview', 'Fee Structures', 'Assign Fees', 'Defaulters']

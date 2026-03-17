@@ -161,24 +161,33 @@ export default function HodDashboard() {
             ) : leaves.length === 0 ? (
               <p className="text-slate-400 text-sm text-center py-6">No leave requests</p>
             ) : leaves.map(l => (
-              <div key={l._id} className="bg-slate-50 rounded-xl p-4">
+              <div key={l._id} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-slate-800">{l.faculty?.userId?.name}</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-800">
+                        {l.faculty?.userId?.name || l.student?.userId?.name}
+                      </span>
+                      <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${l.faculty ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                        {l.faculty ? 'Faculty' : 'Student'}
+                      </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(l.status)}`}>{l.status}</span>
                     </div>
-                    <p className="text-xs text-slate-500 capitalize">{l.type} leave · {new Date(l.fromDate).toLocaleDateString('en-IN')} — {new Date(l.toDate).toLocaleDateString('en-IN')}</p>
-                    <p className="text-xs text-slate-600 mt-1">{l.reason}</p>
+                    <p className="text-xs text-slate-500 font-medium capitalize">
+                      {l.type} leave · {new Date(l.fromDate).toLocaleDateString('en-IN')} — {new Date(l.toDate).toLocaleDateString('en-IN')}
+                    </p>
+                    <p className="text-xs text-slate-600 bg-white/50 p-2 rounded border border-slate-100 mt-2 italic">
+                      "{l.reason}"
+                    </p>
                   </div>
                   {l.status === 'pending' && (
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex gap-1 shrink-0 ml-4">
                       <button onClick={() => handleLeaveStatus(l._id, 'approved')}
-                        className="flex items-center gap-1 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200">
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm transition-colors">
                         <CheckCircle size={12} /> Approve
                       </button>
                       <button onClick={() => handleLeaveStatus(l._id, 'rejected')}
-                        className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-600 rounded-lg hover:bg-red-200">
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-sm transition-colors">
                         <XCircle size={12} /> Reject
                       </button>
                     </div>

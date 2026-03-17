@@ -5,11 +5,11 @@ import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 
 const STATUS_CONFIG = {
-  'applied':      { label: 'Applied', color: 'bg-blue-100 text-blue-700', icon: Clock },
-  'under-review': { label: 'Under Review', color: 'bg-amber-100 text-amber-700', icon: Clock },
-  'shortlisted':  { label: 'Shortlisted', color: 'bg-purple-100 text-purple-700', icon: CheckCircle2 },
+  'applied':      { label: 'Applied', color: 'bg-indigo-100 text-indigo-700', icon: Clock },
+  'under-review': { label: 'Under Review', color: 'bg-indigo-100 text-indigo-700', icon: Clock },
+  'shortlisted':  { label: 'Shortlisted', color: 'bg-indigo-100 text-indigo-700', icon: CheckCircle2 },
   'fee-pending':  { label: 'Fee Pending', color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
-  'confirmed':    { label: 'Confirmed ✓', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
+  'confirmed':    { label: 'Confirmed ✓', color: 'bg-indigo-100 text-indigo-700', icon: CheckCircle2 },
   'rejected':     { label: 'Rejected', color: 'bg-red-100 text-red-700', icon: XCircle },
 };
 
@@ -27,7 +27,7 @@ export default function TrackApplication() {
     setLoading(true);
     setPayDone(false);
     try {
-      const res = await axios.post('/api/admissions/track', form);
+      const res = await axios.post('/admissions/track', form);
       setResult(res.data.data);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Application not found');
@@ -41,12 +41,12 @@ export default function TrackApplication() {
     setPayProcessing(true);
     await new Promise(r => setTimeout(r, 2500));
     try {
-      await axios.post('/api/admissions/payment/simulate', {
+      await axios.post('/admissions/payment/simulate', {
         applicationId: result.applicationId,
         type: 'confirmation',
       });
       setPayDone(true);
-      setResult(r => ({ ...r, status: 'fee-pending', confirmationFee: { ...r.confirmationFee, status: 'paid' } }));
+      setResult(r => ({ ...r, confirmationFee: { ...r.confirmationFee, status: 'paid' } }));
       toast.success('Confirmation fee paid successfully!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Payment failed');
@@ -172,23 +172,27 @@ export default function TrackApplication() {
                   </div>
                 )}
                 {result.status === 'confirmed' && (
-                  <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-sm text-emerald-700">
+                  <div className="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-200 text-sm text-indigo-700">
                     🎉 Congratulations! Your admission is confirmed. Login credentials have been sent to your email.
                   </div>
                 )}
-                {result.status === 'shortlisted' && (
-                  <div className="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-200 text-sm text-purple-700">
+                {(result.status === 'shortlisted' || result.status === 'fee-pending') && (
+                  <div className="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-200 text-sm text-indigo-700">
                     <p className="font-semibold mb-2">🎉 You have been shortlisted!</p>
-                    <p className="mb-4">Pay the confirmation fee to secure your seat.</p>
+                    <p className="mb-4">
+                      {result.status === 'fee-pending'
+                        ? 'Confirmation fee payment is pending. Please pay to secure your seat.'
+                        : 'Pay the confirmation fee to secure your seat.'}
+                    </p>
                     {payDone ? (
-                      <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                      <div className="flex items-center gap-2 text-indigo-700 bg-indigo-50 p-3 rounded-lg border border-indigo-200">
                         <CheckCircle2 size={16} /> Confirmation fee paid! Seat secured.
                       </div>
                     ) : (
                       <button
                         onClick={handleConfirmationPay}
                         disabled={payProcessing}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-60"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60"
                       >
                         {payProcessing ? (
                           <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing...</>

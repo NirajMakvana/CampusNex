@@ -10,7 +10,7 @@ export default function PublicFaculty() {
   const [activeDept, setActiveDept] = useState('All');
 
   useEffect(() => {
-    axios.get('/api/public/faculty')
+    axios.get('/public/faculty')
       .then(r => setFaculty(r.data.data || []))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -32,7 +32,7 @@ export default function PublicFaculty() {
           alt="Faculty"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-indigo-900/70" />
+        <div className="absolute inset-0 bg-slate-900/70" />
         <div className="relative max-w-2xl mx-auto">
           <span className="inline-block mb-3 px-3 py-1 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-full uppercase tracking-wide backdrop-blur-sm">Our Team</span>
           <h1 className="text-4xl font-extrabold text-white mb-4">Expert Faculty</h1>
@@ -57,14 +57,19 @@ export default function PublicFaculty() {
                 </button>
               ))}
             </div>
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search faculty..."
-                className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 w-52"
-              />
+            <div className="flex items-center gap-3">
+              {!loading && (
+                <span className="text-sm text-slate-400">{filtered.length} faculty member{filtered.length !== 1 ? 's' : ''}</span>
+              )}
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search faculty..."
+                  className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 w-52"
+                />
+              </div>
             </div>
           </div>
 
@@ -73,21 +78,19 @@ export default function PublicFaculty() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-20 text-slate-400">No faculty found.</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filtered.map(f => (
-                <div key={f._id} className="bg-white rounded-xl border border-slate-200 p-5 text-center hover:shadow-md hover:border-indigo-200 transition-all">
+                <div key={f._id} className="bg-white rounded-xl border border-slate-200 p-4 text-center hover:shadow-md hover:border-indigo-200 transition-all">
                   {f.userId?.avatar ? (
-                    <img src={f.userId.avatar} alt={f.userId.name} className="w-16 h-16 rounded-full object-cover mx-auto mb-3" />
+                    <img src={f.userId.avatar} alt={f.userId.name} className="w-14 h-14 rounded-full object-cover mx-auto mb-2" />
                   ) : (
-                    <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <GraduationCap size={24} className="text-indigo-600" />
+                    <div className="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <GraduationCap size={20} className="text-indigo-600" />
                     </div>
                   )}
                   <h3 className="font-semibold text-slate-800 text-sm">{f.userId?.name}</h3>
                   <p className="text-xs text-indigo-600 mt-0.5">{f.designation || 'Faculty'}</p>
                   <p className="text-xs text-slate-400 mt-0.5">{f.department?.name}</p>
-                  {f.qualification && <p className="text-xs text-slate-500 mt-1">{f.qualification}</p>}
-                  {f.experience && <p className="text-xs text-slate-400 mt-0.5">{f.experience} yrs exp</p>}
                 </div>
               ))}
             </div>

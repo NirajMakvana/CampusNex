@@ -8,7 +8,7 @@ const applicationSchema = new mongoose.Schema({
     dob: { type: Date, required: true },
     gender: { type: String, enum: ['Male', 'Female', 'Other'], required: true },
     mobile: { type: String, required: true },
-    email: { type: String, required: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
     address: {
       street: String,
       city: String,
@@ -78,14 +78,31 @@ const applicationSchema = new mongoose.Schema({
   studentCreated: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
   academicYear: { type: String, default: '2025-26' },
   statusUpdatedAt: Date,
+  statusHistory: [{
+    status: { type: String },
+    changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    remark: String,
+    changedAt: { type: Date, default: Date.now },
+  }],
 }, { timestamps: true });
 
-// Auto-generate applicationId before save
+// Atomic counter schema to avoid race conditions on applicationId generation
+const counterSchema = new mongoose.Schema({
+  _id: { type: String, required: true },
+  seq: { type: Number, default: 0 },
+});
+const Counter = mongoose.model('Counter', counterSchema);
+
+// Auto-generate applicationId before save using atomic increment
 applicationSchema.pre('save', async function (next) {
   if (!this.applicationId) {
-    const count = await mongoose.model('Application').countDocuments();
     const year = new Date().getFullYear();
-    this.applicationId = `CX-${year}-${String(count + 1).padStart(5, '0')}`;
+    const counter = await Counter.findByIdAndUpdate(
+      `application_${year}`,
+      { $inc: { seq: 1 } },
+      { upsert: true, new: true }
+    );
+    this.applicationId = `CX-${year}-${String(counter.seq).padStart(5, '0')}`;
   }
   next();
 });

@@ -58,6 +58,8 @@ function ExamScheduleTab({ isAdmin, isStudent }) {
   const [exportingSeating, setExportingSeating] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [editExam, setEditExam] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     api.get('/exams').then(r => { setExams(r.data.data || []); setLoading(false); }).catch(() => setLoading(false));
@@ -82,6 +84,29 @@ function ExamScheduleTab({ isAdmin, isStudent }) {
       setExams(prev => prev.filter(e => e._id !== id));
       toast.success('Deleted');
     } catch { toast.error('Delete failed'); }
+  };
+
+  const handleEdit = (exam) => {
+    setEditExam(exam);
+    setEditForm({
+      course: exam.course?._id || exam.course,
+      type: exam.type,
+      date: exam.date ? new Date(exam.date).toISOString().split('T')[0] : '',
+      totalMarks: exam.totalMarks,
+      passingMarks: exam.passingMarks,
+      hall: exam.hall || '',
+      duration: exam.duration || 180,
+    });
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await api.put(`/exams/${editExam._id}`, editForm);
+      setExams(prev => prev.map(e => e._id === editExam._id ? res.data.data : e));
+      toast.success('Exam updated');
+      setEditExam(null);
+    } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
   };
 
   const loadSeatingPlan = async (exam) => {
@@ -194,7 +219,7 @@ function ExamScheduleTab({ isAdmin, isStudent }) {
               <h2 className="text-sm font-semibold text-slate-600 mb-3 uppercase tracking-wide">Upcoming ({filteredUpcoming.length})</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredUpcoming.map(exam => (
-                  <ExamCard key={exam._id} exam={exam} typeColors={typeColors} isAdmin={isAdmin} isStudent={isStudent} onDelete={handleDelete} onSeating={loadSeatingPlan} />
+                  <ExamCard key={exam._id} exam={exam} typeColors={typeColors} isAdmin={isAdmin} isStudent={isStudent} onDelete={handleDelete} onSeating={loadSeatingPlan} onEdit={handleEdit} />
                 ))}
               </div>
             </div>
@@ -204,7 +229,7 @@ function ExamScheduleTab({ isAdmin, isStudent }) {
               <h2 className="text-sm font-semibold text-slate-400 mb-3 uppercase tracking-wide">Past ({filteredPast.length})</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-70">
                 {filteredPast.map(exam => (
-                  <ExamCard key={exam._id} exam={exam} typeColors={typeColors} isAdmin={isAdmin} isStudent={isStudent} onDelete={handleDelete} onSeating={loadSeatingPlan} />
+                  <ExamCard key={exam._id} exam={exam} typeColors={typeColors} isAdmin={isAdmin} isStudent={isStudent} onDelete={handleDelete} onSeating={loadSeatingPlan} onEdit={handleEdit} />
                 ))}
               </div>
             </div>
@@ -304,6 +329,61 @@ function ExamScheduleTab({ isAdmin, isStudent }) {
         </div>
       )}
 
+      {/* Edit Exam Modal */}
+      {editExam && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-slate-800">Edit Exam</h2>
+              <button onClick={() => setEditExam(null)}><X size={18} className="text-slate-400" /></button>
+            </div>
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Type</label>
+                  <select value={editForm.type} onChange={e => setEditForm({ ...editForm, type: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="mid">Mid Term</option>
+                    <option value="end">End Term</option>
+                    <option value="internal">Internal</option>
+                    <option value="practical">Practical</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
+                  <input type="date" required value={editForm.date} onChange={e => setEditForm({ ...editForm, date: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Total Marks</label>
+                  <input type="number" required value={editForm.totalMarks} onChange={e => setEditForm({ ...editForm, totalMarks: +e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Passing Marks</label>
+                  <input type="number" required value={editForm.passingMarks} onChange={e => setEditForm({ ...editForm, passingMarks: +e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Hall / Room</label>
+                  <input type="text" value={editForm.hall} onChange={e => setEditForm({ ...editForm, hall: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Duration (min)</label>
+                  <input type="number" value={editForm.duration} onChange={e => setEditForm({ ...editForm, duration: +e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button type="button" onClick={() => setEditExam(null)} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Update</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
@@ -371,7 +451,7 @@ function ExamScheduleTab({ isAdmin, isStudent }) {
   );
 }
 
-function ExamCard({ exam, typeColors, isAdmin, isStudent, onDelete, onSeating }) {
+function ExamCard({ exam, typeColors, isAdmin, isStudent, onDelete, onSeating, onEdit }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5">
       <div className="flex items-start justify-between mb-3">
@@ -382,9 +462,14 @@ function ExamCard({ exam, typeColors, isAdmin, isStudent, onDelete, onSeating })
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[exam.type]}`}>{exam.type}</span>
           {isAdmin && (
-            <button onClick={() => onDelete(exam._id)} className="p-1 hover:bg-red-50 rounded text-red-400">
-              <Trash2 size={13} />
-            </button>
+            <div className="flex gap-1">
+              <button onClick={() => onEdit(exam)} className="p-1 hover:bg-indigo-50 rounded text-indigo-400">
+                <FileText size={13} />
+              </button>
+              <button onClick={() => onDelete(exam._id)} className="p-1 hover:bg-red-50 rounded text-red-400">
+                <Trash2 size={13} />
+              </button>
+            </div>
           )}
         </div>
       </div>
