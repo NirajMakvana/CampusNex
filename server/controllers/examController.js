@@ -54,6 +54,10 @@ const enterResult = asyncHandler(async (req, res) => {
   const exam = await Exam.findById(examId);
   if (!exam) { res.status(404); throw new Error('Exam not found'); }
 
+  if (marksObtained < 0 || marksObtained > exam.totalMarks) {
+    res.status(400); throw new Error(`Marks must be between 0 and ${exam.totalMarks}`);
+  }
+
   const pct = (marksObtained / exam.totalMarks) * 100;
   const grade =
     pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B+' :
@@ -74,6 +78,13 @@ const enterBulkResults = asyncHandler(async (req, res) => {
   const { examId, results } = req.body; // results: [{ studentId, marksObtained }]
   const exam = await Exam.findById(examId);
   if (!exam) { res.status(404); throw new Error('Exam not found'); }
+
+  // Validate all marks before saving
+  const invalid = results.filter(r => r.marksObtained < 0 || r.marksObtained > exam.totalMarks);
+  if (invalid.length > 0) {
+    res.status(400);
+    throw new Error(`Marks must be between 0 and ${exam.totalMarks} (totalMarks)`);
+  }
 
   const ops = results.map(r => {
     const pct = (r.marksObtained / exam.totalMarks) * 100;
@@ -181,4 +192,74 @@ const generateSeatingPlan = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getExams, createExam, deleteExam, updateExam, enterResult, enterBulkResults, getStudentResults, getExamResults, generateSeatingPlan };
+// GET /api/exams/my-hall-ticket — student gets their own hall ticket for all upcoming exams
+const getMyHallTicket = asyncHandler(async (req, res) => {
+  const profile = await Student.findOne({ userId: req.user._id })
+    .populate('userId', 'name email')
+    .populate('department', 'name code');
+  if (!profile) { res.status(404); throw new Error('Student profile not found'); }
+
+  // Get all upcoming exams for this student's dept + semester
+  const courses = await Course.find({
+    department: profile.department._id,
+    semester: profile.semester,
+  }).select('_id name code');
+
+  const courseIds = courses.map(c => c._id);
+  const exams = await Exam.find({ course: { $in: courseIds } })
+    .populate({ path: 'course', select: 'name code credits', populate: { path: 'department', select: 'name code' } })
+    .sort({ date: 1 });
+
+  // For each exam, find this student's seat using the same deterministic sort (enrollmentNo asc)
+  const DEFAULT_HALLS = ['Hall A', 'Hall B', 'Hall C'];
+  const SEATS_PER_HALL = 30;
+
+  const hallTicketExams = await Promise.all(exams.map(async (exam) => {
+    // Get all students in same dept+semester sorted by enrollmentNo
+    const allStudents = await Student.find({
+      department: profile.department._id,
+      semester: profile.semester,
+    }).select('_id enrollmentNo').sort({ enrollmentNo: 1 });
+
+    const myIndex = allStudents.findIndex(s => s._id.toString() === profile._id.toString());
+    let hall = exam.hall || DEFAULT_HALLS[0];
+    let seatNo = null;
+
+    if (myIndex !== -1) {
+      const hallIdx = Math.floor(myIndex / SEATS_PER_HALL);
+      seatNo = (myIndex % SEATS_PER_HALL) + 1;
+      hall = exam.hall || DEFAULT_HALLS[Math.min(hallIdx, DEFAULT_HALLS.length - 1)];
+    }
+
+    return {
+      examId: exam._id,
+      courseName: exam.course?.name,
+      courseCode: exam.course?.code,
+      type: exam.type,
+      date: exam.date,
+      duration: exam.duration,
+      totalMarks: exam.totalMarks,
+      passingMarks: exam.passingMarks,
+      hall,
+      seatNo,
+    };
+  }));
+
+  res.json({
+    success: true,
+    data: {
+      student: {
+        name: profile.userId?.name,
+        email: profile.userId?.email,
+        enrollmentNo: profile.enrollmentNo,
+        department: profile.department?.name,
+        departmentCode: profile.department?.code,
+        semester: profile.semester,
+        batch: profile.batch,
+      },
+      exams: hallTicketExams,
+    },
+  });
+});
+
+module.exports = { getExams, createExam, deleteExam, updateExam, enterResult, enterBulkResults, getStudentResults, getExamResults, generateSeatingPlan, getMyHallTicket };

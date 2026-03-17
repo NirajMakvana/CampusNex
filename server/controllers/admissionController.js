@@ -139,14 +139,12 @@ const submitApplication = asyncHandler(async (req, res) => {
           const result = await uploadToCloudinary(files[field][0].buffer, 'campusnex/admissions');
           documents[field] = result.secure_url;
         } catch (uploadErr) {
-          console.warn(`Cloudinary upload failed for ${field}:`, uploadErr.message);
           // Continue without this document — don't block submission
         }
       }
     }
   } else {
-    console.warn('Cloudinary not configured — skipping document uploads');
-    // Store placeholder so we know files were submitted
+    // Cloudinary not configured — store placeholder so we know files were submitted
     for (const field of docFields) {
       if (files[field] && files[field][0]) {
         documents[field] = `local:${files[field][0].originalname}`;
@@ -375,6 +373,37 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
   res.json({ success: true, data: application });
 });
 
+// PUT /api/admissions/:id/documents/verify  — verify/reject individual documents
+const verifyDocuments = asyncHandler(async (req, res) => {
+  // req.body.verifications = { photo: { status: 'verified' }, marksheet12: { status: 'rejected', remark: 'Blurry image' }, ... }
+  const { verifications } = req.body;
+  if (!verifications || typeof verifications !== 'object') {
+    res.status(400); throw new Error('verifications object required');
+  }
+
+  const application = await Application.findById(req.params.id);
+  if (!application) { res.status(404); throw new Error('Application not found'); }
+
+  const allowedDocs = ['photo', 'marksheet12', 'marksheet10', 'categoryCert', 'aadhar'];
+  const allowedStatuses = ['pending', 'verified', 'rejected'];
+
+  for (const [docKey, val] of Object.entries(verifications)) {
+    if (!allowedDocs.includes(docKey)) continue;
+    if (!allowedStatuses.includes(val.status)) continue;
+    if (!application.documentVerification) application.documentVerification = {};
+    application.documentVerification[docKey] = {
+      status: val.status,
+      remark: val.remark || '',
+    };
+  }
+
+  application.markModified('documentVerification');
+  await application.save();
+
+  logActivity(req.user._id, `Updated document verification for application ${application.applicationId}`, 'Admissions');
+  res.json({ success: true, data: application.documentVerification });
+});
+
 // GET /api/admissions/merit-list?program=BCA&academicYear=2025-26
 const getMeritList = asyncHandler(async (req, res) => {
   const { program, academicYear } = req.query;
@@ -439,7 +468,7 @@ const getAdminStats = asyncHandler(async (req, res) => {
 module.exports = {
   getPublicStats, getPublicAdmissionSettings, getPublicNotices, getPublicDepartments, getPublicPrograms, getPublicFaculty,
   submitContact, submitApplication, trackApplication, simulatePayment,
-  getApplications, getApplication, updateApplicationStatus, getMeritList,
+  getApplications, getApplication, updateApplicationStatus, verifyDocuments, getMeritList,
   getSettings, createSettings, updateSettings,
   getContactMessages, markContactRead, getAdminStats,
 };

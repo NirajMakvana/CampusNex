@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { Users, UserCheck, BookOpen, Bell, ClipboardList, GraduationCap, Library, CreditCard, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Users, UserCheck, BookOpen, Bell, ClipboardList, GraduationCap, Library, CreditCard, AlertTriangle, TrendingUp, BookMarked } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import HodDashboard from '../components/HodDashboard';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const StatCard = ({ icon: Icon, label, value, color, sub }) => (
   <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
@@ -23,47 +25,28 @@ export default function Dashboard() {
   const [stats, setStats] = useState({});
   const [notices, setNotices] = useState([]);
   const [isHod, setIsHod] = useState(false);
+  const [myTimetable, setMyTimetable] = useState([]);
+  const [feeChartData, setFeeChartData] = useState([]);
+
+  usePageTitle('Dashboard');
 
   useEffect(() => {
     api.get('/notices').then(res => setNotices(res.data.data?.slice(0, 5) || [])).catch(() => {});
 
     if (['admin', 'superadmin'].includes(user?.role)) {
-      Promise.all([
-        api.get('/students'),
-        api.get('/faculty'),
-        api.get('/departments'),
-        api.get('/library/books'),
-      ]).then(([s, f, d, b]) => {
-        setStats({
-          students: s.data.count,
-          faculty: f.data.count,
-          departments: d.data.data?.length,
-          books: b.data.count || b.data.data?.length,
-        });
-      }).catch(() => {});
+      api.get('/dashboard/stats').then(res => setStats(res.data.data)).catch(() => {});
+      api.get('/dashboard/fee-trend').then(res => setFeeChartData(res.data.data || [])).catch(() => {});
     }
 
     if (user?.role === 'student') {
-      Promise.all([
-        api.get('/attendance/student/me').catch(() => ({ data: { data: [] } })),
-        api.get('/fees/student/me').catch(() => ({ data: { summary: null } })),
-      ]).then(([att, fee]) => {
-        const attData = att.data.data || [];
-        const overall = attData.length > 0
-          ? (attData.reduce((s, c) => s + parseFloat(c.percentage), 0) / attData.length).toFixed(1)
-          : null;
-        setStats({
-          attendance: overall,
-          feePending: fee.data.summary?.pending || 0,
-          feeStatus: fee.data.summary,
-        });
-      });
+      api.get('/dashboard/stats/student').then(res => setStats(res.data.data)).catch(() => {});
     }
 
     if (user?.role === 'faculty') {
       api.get('/departments/my-department')
         .then(() => setIsHod(true))
         .catch(() => setIsHod(false));
+      api.get('/timetable/my').then(res => setMyTimetable(res.data.data || [])).catch(() => {});
     }
   }, [user]);
 
@@ -78,17 +61,44 @@ export default function Dashboard() {
 
       {/* Admin stats */}
       {['admin', 'superadmin'].includes(user?.role) && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Users} label="Total Students" value={stats.students} color="bg-indigo-500" />
-          <StatCard icon={UserCheck} label="Faculty Members" value={stats.faculty} color="bg-emerald-500" />
-          <StatCard icon={BookOpen} label="Departments" value={stats.departments} color="bg-amber-500" />
-          <StatCard icon={Library} label="Library Books" value={stats.books} color="bg-rose-500" />
-        </div>
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard icon={Users} label="Total Students" value={stats.students} color="bg-indigo-500" />
+            <StatCard icon={UserCheck} label="Faculty Members" value={stats.faculty} color="bg-emerald-500" />
+            <StatCard icon={BookOpen} label="Departments" value={stats.departments} color="bg-amber-500" />
+            <StatCard icon={Library} label="Library Books" value={stats.books} color="bg-rose-500" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <StatCard icon={CreditCard} label="Fee Collected" value={stats.feeCollected ? `₹${stats.feeCollected.toLocaleString()}` : '₹0'} color="bg-teal-500" sub="Total paid" />
+            <StatCard icon={AlertTriangle} label="Fee Defaulters" value={stats.feePending ?? '—'} color={stats.feePending > 0 ? 'bg-red-500' : 'bg-slate-400'} sub="Pending / overdue" />
+            <StatCard icon={ClipboardList} label="New Applications" value={stats.pendingApplications ?? '—'} color="bg-purple-500" sub="Awaiting review" />
+          </div>
+
+          {/* Fee Collection Trend Chart */}
+          {feeChartData.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h2 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <TrendingUp size={16} className="text-indigo-500" /> Fee Collection Trend (Last 6 Months)
+              </h2>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={feeChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#64748b" />
+                    <YAxis tick={{ fontSize: 12 }} stroke="#64748b" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+                    <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Amount']} labelStyle={{ color: '#334155' }} />
+                    <Line type="monotone" dataKey="amount" stroke="#4f46e5" strokeWidth={2} dot={{ fill: '#4f46e5', strokeWidth: 2, r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Student personalized stats */}
       {user?.role === 'student' && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             icon={ClipboardList}
             label="Avg Attendance"
@@ -103,7 +113,14 @@ export default function Dashboard() {
             color={stats.feePending > 0 ? 'bg-amber-500' : 'bg-emerald-500'}
             sub={stats.feePending > 0 ? 'Clear dues soon' : 'All clear'}
           />
-          <StatCard icon={TrendingUp} label="Semester" value={user?.semester || '—'} color="bg-purple-500" sub="Current semester" />
+          <StatCard
+            icon={BookMarked}
+            label="Books Issued"
+            value={stats.activeBooks ?? '—'}
+            color={stats.overdueBooks > 0 ? 'bg-red-500' : 'bg-teal-500'}
+            sub={stats.overdueBooks > 0 ? `${stats.overdueBooks} overdue` : 'No overdue books'}
+          />
+          <StatCard icon={TrendingUp} label="Semester" value={stats.semester ?? user?.semester ?? '—'} color="bg-purple-500" sub="Current semester" />
         </div>
       )}
 
@@ -126,6 +143,31 @@ export default function Dashboard() {
 
       {/* HOD Dashboard — only for faculty who are actually HODs */}
       {user?.role === 'faculty' && isHod && <HodDashboard />}
+
+      {/* Faculty — Today's Schedule */}
+      {user?.role === 'faculty' && myTimetable.length > 0 && (() => {
+        const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+        const todaySlots = myTimetable.filter(t => t.day === today).flatMap(t => t.slots.map(s => ({ ...s, dept: t.department, semester: t.semester })));
+        if (todaySlots.length === 0) return null;
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h2 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <GraduationCap size={16} className="text-indigo-500" /> Today's Classes — {today}
+            </h2>
+            <div className="space-y-2">
+              {todaySlots.sort((a, b) => a.time?.localeCompare(b.time)).map((s, i) => (
+                <div key={i} className="flex items-center gap-4 p-3 bg-indigo-50 rounded-lg">
+                  <span className="text-xs font-mono font-semibold text-indigo-600 w-24 shrink-0">{s.time}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-800">{s.course?.name || '—'}</p>
+                    <p className="text-xs text-slate-500">{s.dept?.name} · Sem {s.semester} {s.room ? `· ${s.room}` : ''}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Recent Notices */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">

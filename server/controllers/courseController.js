@@ -5,7 +5,20 @@ const getCourses = asyncHandler(async (req, res) => {
   const { department, semester } = req.query;
   const filter = {};
   if (department) filter.department = department;
-  if (semester) filter.semester = semester;
+  if (semester) filter.semester = Number(semester);
+
+  // Faculty sees only their assigned courses
+  if (req.user.role === 'faculty') {
+    const Faculty = require('../models/Faculty');
+    const profile = await Faculty.findOne({ userId: req.user._id });
+    if (profile && profile.subjects?.length > 0) {
+      filter._id = { $in: profile.subjects };
+    } else {
+      // Faculty with no assigned courses — return empty
+      return res.json({ success: true, data: [] });
+    }
+  }
+
   const courses = await Course.find(filter)
     .populate('department', 'name code')
     .populate({ path: 'faculty', populate: { path: 'userId', select: 'name' } });
@@ -14,12 +27,36 @@ const getCourses = asyncHandler(async (req, res) => {
 
 const createCourse = asyncHandler(async (req, res) => {
   const course = await Course.create(req.body);
+  // Sync Faculty.subjects if faculty assigned at creation
+  if (req.body.faculty) {
+    const Faculty = require('../models/Faculty');
+    await Faculty.findByIdAndUpdate(req.body.faculty, { $addToSet: { subjects: course._id } });
+  }
   res.status(201).json({ success: true, data: course });
 });
 
 const updateCourse = asyncHandler(async (req, res) => {
-  const course = await Course.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  if (!course) { res.status(404); throw new Error('Course not found'); }
+  const oldCourse = await Course.findById(req.params.id);
+  if (!oldCourse) { res.status(404); throw new Error('Course not found'); }
+
+  const course = await Course.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    .populate('department', 'name code')
+    .populate({ path: 'faculty', populate: { path: 'userId', select: 'name' } });
+
+  // Sync Faculty.subjects when faculty assignment changes
+  const Faculty = require('../models/Faculty');
+  const oldFacultyId = oldCourse.faculty?.toString();
+  const newFacultyId = req.body.faculty?.toString();
+
+  if (oldFacultyId && oldFacultyId !== newFacultyId) {
+    // Remove course from old faculty's subjects
+    await Faculty.findByIdAndUpdate(oldFacultyId, { $pull: { subjects: oldCourse._id } });
+  }
+  if (newFacultyId && newFacultyId !== oldFacultyId) {
+    // Add course to new faculty's subjects
+    await Faculty.findByIdAndUpdate(newFacultyId, { $addToSet: { subjects: oldCourse._id } });
+  }
+
   res.json({ success: true, data: course });
 });
 

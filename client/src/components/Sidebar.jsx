@@ -7,7 +7,7 @@ import {
   GraduationCap, LayoutDashboard, Users, UserCheck, BookOpen,
   Calendar, ClipboardList, FileText, CreditCard, Library,
   Home, Bell, BarChart2, LogOut, ChevronRight, Building2, CalendarOff,
-  ClipboardCheck, Star, Globe
+  ClipboardCheck, Star, Globe, Award, Activity, X
 } from 'lucide-react';
 
 const navItems = [
@@ -19,6 +19,7 @@ const navItems = [
   { label: 'Timetable', icon: Calendar, path: '/timetable', roles: ['superadmin', 'admin', 'faculty', 'student'] },
   { label: 'Attendance', icon: ClipboardList, path: '/attendance', roles: ['superadmin', 'admin', 'faculty', 'student'] },
   { label: 'Exams & Results', icon: FileText, path: '/exams', roles: ['superadmin', 'admin', 'faculty', 'student'] },
+  { label: 'My Results', icon: Award, path: '/results', roles: ['student'] },
   { label: 'Fees', icon: CreditCard, path: '/fees', roles: ['superadmin', 'admin', 'student'] },
   { label: 'Library', icon: Library, path: '/library', roles: ['superadmin', 'admin', 'faculty', 'student'] },
   { label: 'Hostel', icon: Home, path: '/hostel', roles: ['superadmin', 'admin', 'student'], requiresHostel: true },
@@ -27,10 +28,11 @@ const navItems = [
   { label: 'Admissions', icon: ClipboardCheck, path: '/admissions-admin', roles: ['superadmin', 'admin'] },
   { label: 'Testimonials', icon: Star, path: '/testimonials', roles: ['superadmin', 'admin'] },
   { label: 'Reports', icon: BarChart2, path: '/reports', roles: ['superadmin', 'admin'] },
+  { label: 'Activity Logs', icon: Activity, path: '/activity-logs', roles: ['superadmin'] },
   { label: 'Website Settings', icon: Globe, path: '/website-settings', roles: ['superadmin', 'admin'] },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, isMobile = false }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [hasHostel, setHasHostel] = useState(null); // null = loading, true/false = resolved
@@ -59,11 +61,21 @@ export default function Sidebar({ collapsed, onToggle }) {
   });
 
   return (
-    <aside className={`flex flex-col h-screen bg-slate-900 text-white transition-all duration-300 ${collapsed ? 'w-16' : 'w-60'} fixed left-0 top-0 z-40`}>
+    <aside className={`flex flex-col bg-slate-900 text-white transition-all duration-300 ${
+      isMobile ? 'w-64 h-full' : collapsed ? 'w-16 h-screen fixed left-0 top-0 z-40' : 'w-60 h-screen fixed left-0 top-0 z-40'
+    }`}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700">
         <GraduationCap size={24} className="text-indigo-400 shrink-0" />
-        {!collapsed && <span className="font-bold text-lg tracking-tight">CampusNex</span>}
+        {(!collapsed || isMobile) && <span className="font-bold text-lg tracking-tight">CampusNex</span>}
+        {isMobile && (
+          <button
+            onClick={onToggle}
+            className="ml-auto p-1 rounded hover:bg-slate-800"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -79,14 +91,14 @@ export default function Sidebar({ collapsed, onToggle }) {
             }
           >
             <Icon size={18} className="shrink-0" />
-            {!collapsed && <span>{label}</span>}
+            {(!collapsed || isMobile) && <span>{label}</span>}
           </NavLink>
         ))}
       </nav>
 
       {/* User + Logout */}
       <div className="border-t border-slate-700 p-3">
-        {!collapsed && (
+        {(!collapsed || isMobile) && (
           <NavLink
             to="/profile"
             className={({ isActive }) =>
@@ -110,17 +122,19 @@ export default function Sidebar({ collapsed, onToggle }) {
           className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white text-sm transition-colors"
         >
           <LogOut size={18} className="shrink-0" />
-          {!collapsed && <span>Logout</span>}
+          {(!collapsed || isMobile) && <span>Logout</span>}
         </button>
       </div>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={onToggle}
-        className="absolute -right-3 top-20 bg-slate-700 rounded-full p-1 hover:bg-slate-600 transition-colors"
-      >
-        <ChevronRight size={14} className={`transition-transform ${collapsed ? '' : 'rotate-180'}`} />
-      </button>
+      {/* Collapse toggle - desktop only */}
+      {!isMobile && (
+        <button
+          onClick={onToggle}
+          className="absolute -right-3 top-20 bg-slate-700 rounded-full p-1 hover:bg-slate-600 transition-colors"
+        >
+          <ChevronRight size={14} className={`transition-transform ${collapsed ? '' : 'rotate-180'}`} />
+        </button>
+      )}
     </aside>
   );
 }

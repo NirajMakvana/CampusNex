@@ -62,6 +62,8 @@ app.use('/api/library', libraryRoutes);
 app.use('/api/hostel', hostelRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/leaves', leaveRoutes);
+app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+app.use('/api/activity-logs', require('./routes/activityLogRoutes'));
 app.use('/api/revaluation', require('./routes/revaluationRoutes'));
 app.use('/api/testimonials', require('./routes/testimonialRoutes'));
 app.use('/api/website', require('./routes/websiteRoutes'));

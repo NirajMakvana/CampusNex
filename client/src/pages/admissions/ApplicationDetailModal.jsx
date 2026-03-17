@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, ExternalLink, CheckCircle2, User, CreditCard } from 'lucide-react';
+import { X, ExternalLink, CheckCircle2, User, CreditCard, ShieldCheck, ShieldX, Clock } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 
@@ -19,6 +19,9 @@ export default function ApplicationDetailModal({ appId, onClose }) {
   const [departments, setDepartments] = useState([]);
   const [allocatedProgram, setAllocatedProgram] = useState('');
   const [simPaying, setSimPaying] = useState(false);
+  // docVerification: { photo: { status, remark }, ... } — local edits before save
+  const [docVerification, setDocVerification] = useState({});
+  const [savingDocs, setSavingDocs] = useState(false);
 
   useEffect(() => {
     api.get(`/admissions/${appId}`).then(r => {
@@ -26,6 +29,7 @@ export default function ApplicationDetailModal({ appId, onClose }) {
       setNewStatus(r.data.data.status);
       setRemark(r.data.data.adminRemarks || '');
       setAllocatedProgram(r.data.data.allocatedProgram?._id || '');
+      setDocVerification(r.data.data.documentVerification || {});
     }).catch(() => toast.error('Failed to load application')).finally(() => setLoading(false));
     api.get('/departments').then(r => setDepartments(r.data.data || [])).catch(() => {});
   }, [appId]);
@@ -47,6 +51,24 @@ export default function ApplicationDetailModal({ appId, onClose }) {
       toast.error(err.response?.data?.message || 'Update failed');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const setDocStatus = (docKey, status) => {
+    setDocVerification(prev => ({ ...prev, [docKey]: { ...prev[docKey], status } }));
+  };
+  const setDocRemark = (docKey, remark) => {
+    setDocVerification(prev => ({ ...prev, [docKey]: { ...prev[docKey], remark } }));
+  };
+  const handleSaveDocVerification = async () => {
+    setSavingDocs(true);
+    try {
+      await api.put(`/admissions/${appId}/documents/verify`, { verifications: docVerification });
+      toast.success('Document verification saved');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save');
+    } finally {
+      setSavingDocs(false);
     }
   };
 
@@ -131,17 +153,17 @@ export default function ApplicationDetailModal({ appId, onClose }) {
               </div>
             </Section>
 
-            {/* Documents */}
+            {/* Documents & Verification */}
             {app.documents && Object.keys(app.documents).some(k => app.documents[k]) && (
-              <Section title="Documents">
-                <div className="flex flex-wrap gap-3">
-                  {Object.entries(app.documents).map(([key, url]) => url && (
-                    <a key={key} href={url} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-indigo-600 hover:bg-indigo-50 transition-colors capitalize">
-                      <ExternalLink size={13} /> {key}
-                    </a>
-                  ))}
-                </div>
+              <Section title="Documents & Verification">
+                <DocVerificationPanel
+                  documents={app.documents}
+                  docVerification={docVerification}
+                  setDocStatus={setDocStatus}
+                  setDocRemark={setDocRemark}
+                  onSave={handleSaveDocVerification}
+                  saving={savingDocs}
+                />
               </Section>
             )}
 
@@ -255,6 +277,100 @@ function InfoRow({ label, value }) {
     <div className="flex gap-2 text-sm py-1 border-b border-slate-50">
       <span className="text-slate-400 w-32 shrink-0">{label}</span>
       <span className="text-slate-800 font-medium">{value}</span>
+    </div>
+  );
+}
+
+const DOC_LABELS = {
+  photo: 'Photo',
+  marksheet12: '12th Marksheet',
+  marksheet10: '10th Marksheet',
+  categoryCert: 'Category Certificate',
+  aadhar: 'Aadhar Card',
+};
+
+function DocVerificationPanel({ documents, docVerification, setDocStatus, setDocRemark, onSave, saving }) {
+  const docKeys = Object.keys(documents).filter(k => documents[k]);
+
+  const allVerified = docKeys.length > 0 && docKeys.every(k => (docVerification[k]?.status || 'pending') === 'verified');
+  const anyRejected = docKeys.some(k => (docVerification[k]?.status || 'pending') === 'rejected');
+
+  return (
+    <div className="space-y-3">
+      {/* Summary badge */}
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border ${
+        allVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        : anyRejected ? 'bg-red-50 text-red-700 border-red-200'
+        : 'bg-amber-50 text-amber-700 border-amber-200'
+      }`}>
+        {allVerified ? <ShieldCheck size={14} /> : anyRejected ? <ShieldX size={14} /> : <Clock size={14} />}
+        {allVerified ? 'All documents verified' : anyRejected ? 'Some documents rejected' : 'Verification pending'}
+      </div>
+
+      {/* Per-document rows */}
+      {docKeys.map(key => {
+        const url = documents[key];
+        const verif = docVerification[key] || { status: 'pending', remark: '' };
+        return (
+          <div key={key} className="border border-slate-200 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              {/* Doc link */}
+              <a href={url} target="_blank" rel="noreferrer"
+                className="flex items-center gap-1.5 text-sm text-indigo-600 hover:underline font-medium">
+                <ExternalLink size={13} /> {DOC_LABELS[key] || key}
+              </a>
+              {/* Status buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setDocStatus(key, 'verified')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    verif.status === 'verified'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-emerald-600 border-emerald-300 hover:bg-emerald-50'
+                  }`}>
+                  <ShieldCheck size={12} /> Verify
+                </button>
+                <button
+                  onClick={() => setDocStatus(key, 'rejected')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    verif.status === 'rejected'
+                      ? 'bg-red-600 text-white border-red-600'
+                      : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
+                  }`}>
+                  <ShieldX size={12} /> Reject
+                </button>
+                <button
+                  onClick={() => setDocStatus(key, 'pending')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    verif.status === 'pending'
+                      ? 'bg-amber-500 text-white border-amber-500'
+                      : 'bg-white text-amber-600 border-amber-300 hover:bg-amber-50'
+                  }`}>
+                  <Clock size={12} /> Pending
+                </button>
+              </div>
+            </div>
+            {/* Remark input — show when rejected */}
+            {verif.status === 'rejected' && (
+              <input
+                type="text"
+                value={verif.remark || ''}
+                onChange={e => setDocRemark(key, e.target.value)}
+                placeholder="Rejection reason (e.g. Blurry image, wrong document)"
+                className="w-full px-3 py-1.5 text-xs border border-red-200 rounded-lg focus:outline-none focus:border-red-400 bg-red-50"
+              />
+            )}
+          </div>
+        );
+      })}
+
+      {/* Save button */}
+      <button
+        onClick={onSave}
+        disabled={saving}
+        className="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-900 transition-colors disabled:opacity-60">
+        {saving ? 'Saving...' : 'Save Verification'}
+      </button>
     </div>
   );
 }

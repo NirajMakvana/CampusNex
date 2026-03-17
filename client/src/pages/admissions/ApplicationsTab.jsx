@@ -71,18 +71,18 @@ export default function ApplicationsTab({ onView }) {
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Applications', value: stats.total, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: 'Shortlisted', value: stats.shortlisted, icon: CheckCircle2, color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'Confirmed', value: stats.confirmed, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Rejected', value: stats.rejected, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center shrink-0`}>
-              <Icon size={18} className={color} />
+          { label: 'Total Applications', value: stats.total,       icon: Users,        iconBg: 'bg-indigo-500',  cardBg: 'bg-white' },
+          { label: 'Shortlisted',        value: stats.shortlisted, icon: Clock,         iconBg: 'bg-purple-500',  cardBg: 'bg-white' },
+          { label: 'Confirmed',          value: stats.confirmed,   icon: CheckCircle2,  iconBg: 'bg-emerald-500', cardBg: 'bg-white' },
+          { label: 'Rejected',           value: stats.rejected,    icon: XCircle,       iconBg: 'bg-red-500',     cardBg: 'bg-white' },
+        ].map(({ label, value, icon: Icon, iconBg }) => (
+          <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-4 shadow-sm">
+            <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center shrink-0 shadow-sm`}>
+              <Icon size={20} className="text-white" />
             </div>
             <div>
-              <div className={`text-xl font-bold ${color}`}>{value}</div>
-              <div className="text-xs text-slate-500">{label}</div>
+              <div className="text-2xl font-bold text-slate-800">{value}</div>
+              <div className="text-xs text-slate-500 mt-0.5">{label}</div>
             </div>
           </div>
         ))}

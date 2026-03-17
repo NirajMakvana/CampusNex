@@ -3,7 +3,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { CreditCard, Plus, AlertTriangle, CheckCircle, Clock, X, IndianRupee, Download, Search, TrendingUp } from 'lucide-react';
-import { exportElementToPdf } from '../utils/exportPdf';
+import { exportElementToPdf, printReceipt } from '../utils/exportPdf';
 
 export default function Fees() {
   const { user } = useAuth();
@@ -570,6 +570,8 @@ function MyFeesTab() {
   const [loading, setLoading] = useState(true);
   const [receiptFee, setReceiptFee] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [payingId, setPayingId] = useState(null);
+  const [payModal, setPayModal] = useState(null); // fee object
 
   useEffect(() => {
     api.get('/students/me').then(res => {
@@ -587,17 +589,63 @@ function MyFeesTab() {
     }).catch(() => setLoading(false));
   }, [user]);
 
+  const handleSimulatePayment = async (fee) => {
+    console.log('Starting payment for fee:', fee._id);
+    setPayingId(fee._id);
+    try {
+      console.log('Sending payment request...');
+      const response = await api.put(`/fees/${fee._id}/pay`, { 
+        transactionId: `SIM_TXN_${Date.now()}`,
+        paymentMethod: 'simulated'
+      });
+      console.log('Payment response:', response.data);
+      
+      // Refresh fees
+      console.log('Refreshing fees for student:', studentId);
+      const r = await api.get(`/fees/student/${studentId}`);
+      setFees(r.data.data || []);
+      setSummary(r.data.summary);
+      toast.success('Payment successful!');
+      setPayModal(null);
+    } catch (err) { 
+      console.error('Payment error:', err);
+      console.error('Error response:', err.response?.data);
+      toast.error(err.response?.data?.message || 'Payment failed'); 
+    }
+    finally { setPayingId(null); }
+  };
+
   const handleDownloadReceipt = async (fee) => {
+    console.log('Starting receipt download for fee:', fee._id);
     setReceiptFee(fee);
     // Wait for DOM to render then export
     setTimeout(async () => {
       setExporting(true);
       try {
+        console.log('Looking for element: fee-receipt-print');
+        const element = document.getElementById('fee-receipt-print');
+        if (!element) {
+          throw new Error('Receipt element not found');
+        }
+        console.log('Element found, starting PDF export...');
         await exportElementToPdf('fee-receipt-print', `receipt-${fee._id}`, 'portrait');
-        toast.success('Receipt downloaded');
-      } catch { toast.error('Export failed'); }
-      finally { setExporting(false); setReceiptFee(null); }
-    }, 300);
+        toast.success('Receipt downloaded as PDF');
+        console.log('Receipt download successful');
+      } catch (error) { 
+        console.error('PDF export failed, trying print fallback:', error);
+        try {
+          printReceipt('fee-receipt-print');
+          toast.success('Receipt opened for printing');
+        } catch (printError) {
+          console.error('Print fallback also failed:', printError);
+          toast.error('Receipt download failed. Please try again.');
+        }
+      }
+      finally { 
+        setExporting(false); 
+        setReceiptFee(null); 
+      }
+    }, 500); // Increased timeout to ensure DOM is ready
   };
 
   if (loading) return <div className="text-center py-10 text-slate-400">Loading...</div>;
@@ -668,10 +716,15 @@ function MyFeesTab() {
                   }`}>{f.status}</span>
                 </td>
                 <td className="px-4 py-3">
-                  {f.status === 'paid' && (
+                  {f.status === 'paid' ? (
                     <button onClick={() => handleDownloadReceipt(f)} disabled={exporting}
                       className="flex items-center gap-1 text-xs text-indigo-600 hover:underline disabled:opacity-60">
                       <Download size={12} /> Receipt
+                    </button>
+                  ) : (
+                    <button onClick={() => setPayModal(f)}
+                      className="flex items-center gap-1 text-xs px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
+                      Pay Now
                     </button>
                   )}
                 </td>
@@ -681,39 +734,169 @@ function MyFeesTab() {
         </table>
       </div>
 
+      {/* Simulated Payment Modal */}
+      {payModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-slate-800">Confirm Payment</h2>
+              <button onClick={() => setPayModal(null)}><X size={18} className="text-slate-400" /></button>
+            </div>
+            <div className="bg-indigo-50 rounded-xl p-4 mb-5 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Description</span>
+                <span className="font-medium text-slate-800">{payModal.feeStructure?.description || payModal.feeStructure?.academicYear || 'Fee Payment'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Amount</span>
+                <span className="font-medium text-slate-800">₹{payModal.amount?.toLocaleString()}</span>
+              </div>
+              {payModal.discount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Discount</span>
+                  <span className="font-medium text-green-600">-₹{payModal.discount?.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-indigo-200 pt-2 mt-1">
+                <span className="font-semibold text-slate-700">Net Payable</span>
+                <span className="font-bold text-indigo-700 text-base">₹{(payModal.amount - payModal.discount)?.toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mb-5">
+              This is a simulated payment. No real transaction will occur.
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setPayModal(null)} className="flex-1 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+              <button onClick={() => handleSimulatePayment(payModal)} disabled={payingId === payModal._id}
+                className="flex-1 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-60 flex items-center justify-center gap-2">
+                {payingId === payModal._id
+                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing...</>
+                  : 'Confirm Payment'
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hidden receipt for PDF export */}
       {receiptFee && (
-        <div className="fixed -left-[9999px] top-0">
-          <div id="fee-receipt-print" className="bg-white p-8 w-[600px]">
-            <div className="text-center border-b border-slate-200 pb-4 mb-4">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center">
-                  <CreditCard size={16} className="text-white" />
+        <div style={{ position: 'fixed', left: '-9999px', top: '0' }}>
+          <div id="fee-receipt-print" style={{ 
+            backgroundColor: 'white', 
+            padding: '32px', 
+            width: '600px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#1e293b'
+          }}>
+            {/* Header */}
+            <div style={{ 
+              textAlign: 'center', 
+              borderBottom: '1px solid #e2e8f0', 
+              paddingBottom: '16px', 
+              marginBottom: '16px' 
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '8px', 
+                marginBottom: '8px' 
+              }}>
+                <div style={{ 
+                  width: '32px', 
+                  height: '32px', 
+                  backgroundColor: '#4f46e5', 
+                  borderRadius: '50%', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: 'bold'
+                }}>
+                  ₹
                 </div>
-                <span className="text-xl font-bold text-indigo-700">CampusNex</span>
+                <span style={{ 
+                  fontSize: '24px', 
+                  fontWeight: 'bold', 
+                  color: '#4f46e5' 
+                }}>
+                  CampusNex
+                </span>
               </div>
-              <h2 className="text-lg font-bold text-slate-800 mt-1">Fee Payment Receipt</h2>
-              <p className="text-xs text-slate-400">Receipt No: {receiptFee._id?.slice(-8).toUpperCase()}</p>
+              <h2 style={{ 
+                fontSize: '20px', 
+                fontWeight: 'bold', 
+                color: '#1e293b', 
+                margin: '8px 0 4px 0' 
+              }}>
+                Fee Payment Receipt
+              </h2>
+              <p style={{ 
+                fontSize: '12px', 
+                color: '#64748b', 
+                margin: '0' 
+              }}>
+                Receipt No: {receiptFee._id?.slice(-8).toUpperCase()}
+              </p>
             </div>
-            <div className="space-y-2 text-sm mb-6">
+
+            {/* Receipt Details */}
+            <div style={{ marginBottom: '24px' }}>
               {[
-                ['Student Name', user?.name],
-                ['Description', receiptFee.feeStructure?.description || receiptFee.feeStructure?.academicYear || '—'],
-                ['Amount', `₹${receiptFee.amount?.toLocaleString()}`],
+                ['Student Name', user?.name || 'N/A'],
+                ['Description', receiptFee.feeStructure?.description || receiptFee.feeStructure?.academicYear || 'Fee Payment'],
+                ['Amount', `₹${receiptFee.amount?.toLocaleString() || '0'}`],
                 ['Discount', receiptFee.discount > 0 ? `₹${receiptFee.discount?.toLocaleString()}` : 'None'],
-                ['Net Amount Paid', `₹${(receiptFee.amount - receiptFee.discount)?.toLocaleString()}`],
+                ['Net Amount Paid', `₹${((receiptFee.amount || 0) - (receiptFee.discount || 0))?.toLocaleString()}`],
                 ['Payment Date', receiptFee.paidDate ? new Date(receiptFee.paidDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN')],
+                ['Transaction ID', receiptFee.transactionId || 'N/A'],
                 ['Status', 'PAID'],
               ].map(([label, value]) => (
-                <div key={label} className="flex justify-between border-b border-slate-100 py-1.5">
-                  <span className="text-slate-500">{label}</span>
-                  <span className="font-semibold text-slate-800">{value}</span>
+                <div key={label} style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  borderBottom: '1px solid #f1f5f9', 
+                  padding: '8px 0',
+                  fontSize: '14px'
+                }}>
+                  <span style={{ color: '#64748b' }}>{label}:</span>
+                  <span style={{ 
+                    fontWeight: label === 'Net Amount Paid' || label === 'Status' ? 'bold' : '600', 
+                    color: label === 'Status' ? '#059669' : '#1e293b'
+                  }}>
+                    {value}
+                  </span>
                 </div>
               ))}
             </div>
-            <div className="text-center mt-6 pt-4 border-t border-slate-200">
-              <p className="text-xs text-slate-400">This is a computer-generated receipt. No signature required.</p>
-              <p className="text-xs text-slate-400 mt-1">Generated on {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+
+            {/* Footer */}
+            <div style={{ 
+              textAlign: 'center', 
+              marginTop: '24px', 
+              paddingTop: '16px', 
+              borderTop: '1px solid #e2e8f0' 
+            }}>
+              <p style={{ 
+                fontSize: '12px', 
+                color: '#64748b', 
+                margin: '0 0 4px 0' 
+              }}>
+                This is a computer-generated receipt. No signature required.
+              </p>
+              <p style={{ 
+                fontSize: '12px', 
+                color: '#64748b', 
+                margin: '0' 
+              }}>
+                Generated on {new Date().toLocaleDateString('en-IN', { 
+                  day: 'numeric', 
+                  month: 'long', 
+                  year: 'numeric' 
+                })}
+              </p>
             </div>
           </div>
         </div>

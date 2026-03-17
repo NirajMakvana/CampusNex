@@ -5,7 +5,7 @@ const upload = require('../middleware/upload');
 const {
   getPublicStats, getPublicAdmissionSettings, getPublicNotices, getPublicDepartments, getPublicPrograms, getPublicFaculty,
   submitContact, submitApplication, trackApplication, simulatePayment,
-  getApplications, getApplication, updateApplicationStatus, getMeritList,
+  getApplications, getApplication, updateApplicationStatus, verifyDocuments, getMeritList,
   getSettings, createSettings, updateSettings,
   getContactMessages, markContactRead, getAdminStats,
 } = require('../controllers/admissionController');
@@ -42,5 +42,6 @@ router.get('/contacts', protect, authorize('admin', 'superadmin'), getContactMes
 router.put('/contacts/:id/read', protect, authorize('admin', 'superadmin'), markContactRead);
 router.get('/:id', protect, authorize('admin', 'superadmin'), getApplication);
 router.put('/:id/status', protect, authorize('admin', 'superadmin'), updateApplicationStatus);
+router.put('/:id/documents/verify', protect, authorize('admin', 'superadmin'), verifyDocuments);
 
 module.exports = router;

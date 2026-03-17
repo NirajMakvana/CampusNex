@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getExams, createExam, deleteExam, updateExam, enterResult, enterBulkResults, getStudentResults, getExamResults, generateSeatingPlan } = require('../controllers/examController');
+const { getExams, createExam, deleteExam, updateExam, enterResult, enterBulkResults, getStudentResults, getExamResults, generateSeatingPlan, getMyHallTicket } = require('../controllers/examController');
 const { protect, authorize } = require('../middleware/auth');
 
 router.use(protect);
+router.get('/my-hall-ticket', authorize('student'), getMyHallTicket);
 router.route('/').get(getExams).post(authorize('admin', 'superadmin'), createExam);
 router.route('/:id')
   .put(authorize('admin', 'superadmin'), updateExam)

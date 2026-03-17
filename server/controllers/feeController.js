@@ -72,13 +72,29 @@ const bulkAssignFee = asyncHandler(async (req, res) => {
 });
 
 const markFeePaid = asyncHandler(async (req, res) => {
-  const fee = await Fee.findByIdAndUpdate(
+  const fee = await Fee.findById(req.params.id).populate('student');
+  if (!fee) { res.status(404); throw new Error('Fee record not found'); }
+  
+  // Security check: students can only pay their own fees
+  if (req.user.role === 'student') {
+    const studentProfile = await Student.findOne({ userId: req.user._id });
+    if (!studentProfile || fee.student._id.toString() !== studentProfile._id.toString()) {
+      res.status(403); throw new Error('You can only pay your own fees');
+    }
+  }
+  
+  const updatedFee = await Fee.findByIdAndUpdate(
     req.params.id,
-    { status: 'paid', paidDate: new Date(), transactionId: req.body.transactionId || `MANUAL-${Date.now()}` },
+    { 
+      status: 'paid', 
+      paidDate: new Date(), 
+      transactionId: req.body.transactionId || `MANUAL-${Date.now()}`,
+      paymentMethod: req.body.paymentMethod || 'simulated'
+    },
     { new: true }
   );
-  if (!fee) { res.status(404); throw new Error('Fee record not found'); }
-  res.json({ success: true, data: fee });
+  
+  res.json({ success: true, data: updatedFee });
 });
 
 const applyDiscount = asyncHandler(async (req, res) => {

@@ -9,10 +9,14 @@ const LOW_ATTENDANCE_THRESHOLD = 0.75; // 75%
 const markAttendance = asyncHandler(async (req, res) => {
   const { courseId, date, records } = req.body;
   // records: [{ studentId, status, remarks }]
+  const markedBy = req.user.role === 'faculty'
+    ? (await require('../models/Faculty').findOne({ userId: req.user._id }).select('_id'))?._id
+    : undefined;
+
   const ops = records.map(r => ({
     updateOne: {
       filter: { student: r.studentId, course: courseId, date: new Date(date) },
-      update: { $set: { status: r.status, remarks: r.remarks || '' } },
+      update: { $set: { status: r.status, remarks: r.remarks || '', ...(markedBy && { markedBy }) } },
       upsert: true,
     },
   }));

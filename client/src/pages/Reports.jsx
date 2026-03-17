@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { BarChart2, Users, CreditCard, BookOpen, TrendingUp, Download, FileText } from 'lucide-react';
+import { BarChart2, Users, CreditCard, BookOpen, TrendingUp, Download, FileText, ClipboardList, AlertTriangle } from 'lucide-react';
 import { exportElementToPdf } from '../utils/exportPdf';
 
 const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
@@ -13,6 +14,7 @@ const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
 export default function Reports() {
   const [stats, setStats] = useState({ students: 0, faculty: 0, departments: 0, books: 0 });
   const [feeStats, setFeeStats] = useState(null);
+  const [attendanceStats, setAttendanceStats] = useState(null);
   const [deptData, setDeptData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -36,15 +38,17 @@ export default function Reports() {
       api.get('/departments'),
       api.get('/library/books'),
       api.get('/fees/stats'),
-    ]).then(([s, f, d, fee, feeRes]) => {
+      api.get('/attendance/stats').catch(() => ({ data: { data: null } })),
+    ]).then(([s, f, d, b, feeRes, attRes]) => {
       const depts = d.data.data || [];
       setStats({
         students: s.data.count || 0,
         faculty: f.data.count || f.data.data?.length || 0,
         departments: depts.length,
-        books: feeRes?.data?.count || 0,
+        books: b.data.count || b.data.data?.length || 0,
       });
-      setFeeStats(fee.data.data);
+      setFeeStats(feeRes.data.data);
+      setAttendanceStats(attRes.data.data);
 
       // Use pre-aggregated studentCount from getDepartments — no need to fetch all students
       const deptData = depts
@@ -93,6 +97,79 @@ export default function Reports() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportExcel = () => {
+    try {
+      // Create workbook with multiple sheets
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Overview Stats
+      const overviewData = [
+        ['Campus Overview Report', '', '', ''],
+        ['Generated on:', new Date().toLocaleDateString(), '', ''],
+        ['', '', '', ''],
+        ['Metric', 'Count', '', ''],
+        ['Total Students', stats.students, '', ''],
+        ['Faculty Members', stats.faculty, '', ''],
+        ['Departments', stats.departments, '', ''],
+        ['Library Books', stats.books, '', ''],
+      ];
+      const ws1 = XLSX.utils.aoa_to_sheet(overviewData);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Overview');
+
+      // Sheet 2: Department-wise Data
+      const deptHeaders = ['Department', 'Code', 'Students', 'Share %'];
+      const deptRows = deptData.map(d => [
+        d.fullName || d.name,
+        d.name,
+        d.students,
+        stats.students > 0 ? ((d.students / stats.students) * 100).toFixed(1) + '%' : '0%'
+      ]);
+      const ws2 = XLSX.utils.aoa_to_sheet([deptHeaders, ...deptRows]);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Departments');
+
+      // Sheet 3: Fee Statistics (if available)
+      if (feeStats) {
+        const feeData = [
+          ['Fee Collection Report', '', ''],
+          ['', '', ''],
+          ['Metric', 'Amount (₹)', 'Count'],
+          ['Total Amount', feeStats.totalAmount?.toLocaleString() || 0, ''],
+          ['Collected Amount', feeStats.collectedAmount?.toLocaleString() || 0, feeStats.paidCount || 0],
+          ['Pending Amount', ((feeStats.totalAmount || 0) - (feeStats.collectedAmount || 0)).toLocaleString(), feeStats.pendingCount || 0],
+          ['Overdue Amount', '', feeStats.overdueCount || 0],
+        ];
+        const ws3 = XLSX.utils.aoa_to_sheet(feeData);
+        XLSX.utils.book_append_sheet(wb, ws3, 'Fee Stats');
+      }
+
+      // Sheet 4: Attendance Data (if available)
+      if (attendanceStats) {
+        const attData = [
+          ['Attendance Report', '', ''],
+          ['', '', ''],
+          ['Overall Attendance Rate', attendanceStats.overallRate + '%', ''],
+          ['At-Risk Students (<75%)', attendanceStats.atRiskCount, ''],
+          ['Today Present', attendanceStats.dayPresent, ''],
+          ['Today Absent', attendanceStats.dayAbsent, ''],
+          ['', '', ''],
+          ['Low Attendance Students', '', ''],
+          ['Student Name', 'Course', 'Attendance %'],
+          ...(attendanceStats.lowAttendance?.map(s => [s.studentName, s.courseName, s.percentage + '%']) || [])
+        ];
+        const ws4 = XLSX.utils.aoa_to_sheet(attData);
+        XLSX.utils.book_append_sheet(wb, ws4, 'Attendance');
+      }
+
+      // Export file
+      const fileName = `campus-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      toast.success('Excel report exported successfully');
+    } catch (error) {
+      toast.error('Failed to export Excel file');
+      console.error('Excel export error:', error);
+    }
+  };
+
   const feeChartData = feeStats ? [
     { name: 'Collected', value: feeStats.collectedAmount || 0 },
     { name: 'Pending', value: (feeStats.totalAmount || 0) - (feeStats.collectedAmount || 0) },
@@ -129,6 +206,10 @@ export default function Reports() {
           <button onClick={handleExportCsv} disabled={deptData.length === 0}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 disabled:opacity-50">
             <FileText size={15} /> Export CSV
+          </button>
+          <button onClick={handleExportExcel} disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-60">
+            <Download size={15} /> Export Excel
           </button>
           <button onClick={handleExportPdf} disabled={exporting}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60">
@@ -208,6 +289,60 @@ export default function Reports() {
           )}
         </div>
       </div>
+
+      {/* Attendance Overview */}
+      {attendanceStats && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Attendance KPIs */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h2 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <ClipboardList size={16} className="text-blue-500" /> Attendance Overview
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-indigo-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-slate-500">Overall Rate</p>
+                <p className="text-2xl font-bold text-indigo-700">{attendanceStats.overallRate}%</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-slate-500">At-Risk Students</p>
+                <p className="text-2xl font-bold text-red-600">{attendanceStats.atRiskCount}</p>
+              </div>
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-slate-500">Today Present</p>
+                <p className="text-2xl font-bold text-green-700">{attendanceStats.dayPresent}</p>
+              </div>
+              <div className="bg-amber-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-slate-500">Today Absent</p>
+                <p className="text-2xl font-bold text-amber-600">{attendanceStats.dayAbsent}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Low Attendance Students */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h2 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <AlertTriangle size={16} className="text-red-500" /> Low Attendance (&lt;75%)
+            </h2>
+            {attendanceStats.lowAttendance?.length === 0 ? (
+              <p className="text-slate-400 text-sm">No students below 75%</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {attendanceStats.lowAttendance?.slice(0, 8).map((s, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-100 last:border-0">
+                    <div>
+                      <p className="font-medium text-slate-700">{s.studentName}</p>
+                      <p className="text-xs text-slate-400">{s.courseName}</p>
+                    </div>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${parseFloat(s.percentage) < 60 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {s.percentage}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Summary Table */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">

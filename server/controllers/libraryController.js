@@ -77,6 +77,12 @@ const updateReservation = asyncHandler(async (req, res) => {
 });
 
 const getLibraryStats = asyncHandler(async (req, res) => {
+  // Auto-mark overdue issues
+  await BookIssue.updateMany(
+    { status: 'issued', dueDate: { $lt: new Date() } },
+    { $set: { status: 'overdue' } }
+  );
+
   const [totalBooks, totalIssued, totalOverdue, totalReservations, recentIssues, categoryAgg] = await Promise.all([
     Book.aggregate([{ $group: { _id: null, totalBooks: { $sum: '$totalCopies' }, available: { $sum: '$availableCopies' } } }]),
     BookIssue.countDocuments({ status: 'issued' }),
@@ -121,6 +127,13 @@ const getMyIssues = asyncHandler(async (req, res) => {
   const Student = require('../models/Student');
   const student = await Student.findOne({ userId: req.user._id });
   if (!student) { res.status(404); throw new Error('Student profile not found'); }
+
+  // Auto-mark overdue for this student
+  await BookIssue.updateMany(
+    { student: student._id, status: 'issued', dueDate: { $lt: new Date() } },
+    { $set: { status: 'overdue' } }
+  );
+
   const issues = await BookIssue.find({ student: student._id })
     .populate('book', 'title author isbn category coverImage')
     .sort({ issueDate: -1 });

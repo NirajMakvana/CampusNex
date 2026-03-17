@@ -14,7 +14,7 @@ export default function Exams() {
   const defaultTab = isStudent ? 'Schedule' : 'Schedule';
   const [tab, setTab] = useState(defaultTab);
   const tabs = isStudent
-    ? ['Schedule', 'My Results', 'Revaluation']
+    ? ['Schedule', 'My Results', 'Hall Ticket', 'Revaluation']
     : isAdmin
     ? ['Schedule', 'Enter Marks', 'Revaluation']
     : ['Schedule', 'Enter Marks', 'Revaluation'];
@@ -38,6 +38,7 @@ export default function Exams() {
       {tab === 'Schedule' && <ExamScheduleTab isAdmin={isAdmin} isStudent={isStudent} />}
       {tab === 'Enter Marks' && <EnterMarksTab />}
       {tab === 'My Results' && <MyResultsTab />}
+      {tab === 'Hall Ticket' && <HallTicketTab />}
       {tab === 'Revaluation' && <RevaluationTab isStudent={isStudent} isAdmin={isAdmin} />}
     </div>
   );
@@ -871,6 +872,168 @@ function MyResultsTab() {
         <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between text-xs text-slate-400">
           <span>CampusNex — Campus Management System</span>
           <span>This is a computer-generated document</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Hall Ticket Tab (Student) ────────────────────────────────────────────────
+function HallTicketTab() {
+  const { user } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('all');
+
+  useEffect(() => {
+    api.get('/exams/my-hall-ticket')
+      .then(r => setData(r.data.data))
+      .catch(() => toast.error('Failed to load hall ticket'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportElementToPdf('hall-ticket-print', `hall-ticket-${data?.student?.enrollmentNo}`, 'portrait');
+      toast.success('Hall ticket downloaded');
+    } catch { toast.error('Export failed'); }
+    finally { setExporting(false); }
+  };
+
+  const typeColors = {
+    mid: 'bg-blue-100 text-blue-700',
+    end: 'bg-red-100 text-red-700',
+    internal: 'bg-green-100 text-green-700',
+    practical: 'bg-purple-100 text-purple-700',
+  };
+
+  if (loading) return <div className="text-center py-10 text-slate-400">Loading...</div>;
+  if (!data) return <div className="text-center py-10 text-slate-400">No hall ticket data found.</div>;
+
+  const now = new Date();
+  const upcoming = data.exams.filter(e => new Date(e.date) >= now);
+  const past = data.exams.filter(e => new Date(e.date) < now);
+  const filtered = data.exams.filter(e => typeFilter === 'all' || e.type === typeFilter);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="all">All Types</option>
+            <option value="mid">Mid Term</option>
+            <option value="end">End Term</option>
+            <option value="internal">Internal</option>
+            <option value="practical">Practical</option>
+          </select>
+          <span className="text-xs text-slate-400">{upcoming.length} upcoming · {past.length} past</span>
+        </div>
+        <button onClick={handleExport} disabled={exporting}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-60">
+          <Download size={15} /> {exporting ? 'Exporting...' : 'Download Hall Ticket PDF'}
+        </button>
+      </div>
+
+      {/* Printable Hall Ticket */}
+      <div id="hall-ticket-print" className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        {/* Header */}
+        <div className="bg-indigo-600 text-white p-6 text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+              <Award size={16} className="text-indigo-600" />
+            </div>
+            <span className="text-xl font-bold">CampusNex</span>
+          </div>
+          <h2 className="text-lg font-bold mt-2">HALL TICKET / ADMIT CARD</h2>
+          <p className="text-indigo-200 text-xs mt-1">Academic Year {data.student.batch}</p>
+        </div>
+
+        {/* Student Info */}
+        <div className="p-5 border-b border-slate-200">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            {[
+              { label: 'Student Name', value: data.student.name },
+              { label: 'Enrollment No.', value: data.student.enrollmentNo },
+              { label: 'Department', value: `${data.student.department} (${data.student.departmentCode})` },
+              { label: 'Semester', value: `Semester ${data.student.semester}` },
+              { label: 'Batch', value: data.student.batch },
+              { label: 'Email', value: data.student.email },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-slate-50 rounded-lg p-3">
+                <p className="text-xs text-slate-400 mb-0.5">{label}</p>
+                <p className="font-semibold text-slate-800 text-xs">{value || '—'}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Exam Schedule Table */}
+        <div className="p-5">
+          <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <Calendar size={15} className="text-indigo-500" /> Examination Schedule
+          </h3>
+          {filtered.length === 0 ? (
+            <div className="text-center py-8 text-slate-400">
+              <FileText size={28} className="mx-auto mb-2 opacity-30" />
+              <p>No exams found</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  {['Subject', 'Code', 'Type', 'Date & Time', 'Duration', 'Hall', 'Seat No', 'Max Marks'].map(h => (
+                    <th key={h} className="text-left px-3 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide border-r border-slate-200 last:border-r-0">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((exam, i) => {
+                  const isPast = new Date(exam.date) < now;
+                  return (
+                    <tr key={exam.examId} className={isPast ? 'opacity-50' : 'hover:bg-slate-50'}>
+                      <td className="px-3 py-2.5 font-medium text-slate-800 border-r border-slate-100">{exam.courseName}</td>
+                      <td className="px-3 py-2.5 font-mono text-xs text-slate-500 border-r border-slate-100">{exam.courseCode}</td>
+                      <td className="px-3 py-2.5 border-r border-slate-100">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[exam.type]}`}>{exam.type}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-700 border-r border-slate-100 whitespace-nowrap">
+                        {new Date(exam.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600 border-r border-slate-100">{exam.duration} min</td>
+                      <td className="px-3 py-2.5 font-medium text-indigo-700 border-r border-slate-100">{exam.hall || '—'}</td>
+                      <td className="px-3 py-2.5 font-bold text-slate-800 border-r border-slate-100">
+                        {exam.seatNo ? (
+                          <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-mono">{exam.seatNo}</span>
+                        ) : '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-700">{exam.totalMarks}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Instructions */}
+        <div className="mx-5 mb-5 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-xs font-semibold text-amber-800 mb-2">Important Instructions:</p>
+          <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
+            <li>Carry this hall ticket to every examination.</li>
+            <li>Report to the examination hall 15 minutes before the scheduled time.</li>
+            <li>Mobile phones and electronic devices are strictly prohibited.</li>
+            <li>Sit only on the allotted seat number mentioned above.</li>
+            <li>Carry a valid college ID card along with this hall ticket.</li>
+          </ul>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 pb-5 flex justify-between items-center text-xs text-slate-400 border-t border-slate-100 pt-4">
+          <span>Generated: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          <span>CampusNex — This is a computer-generated document</span>
         </div>
       </div>
     </div>

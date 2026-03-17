@@ -50,6 +50,15 @@ const applicationSchema = new mongoose.Schema({
     aadhar: String,
   },
 
+  // Per-document verification by admin
+  documentVerification: {
+    photo:        { status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' }, remark: String },
+    marksheet12:  { status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' }, remark: String },
+    marksheet10:  { status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' }, remark: String },
+    categoryCert: { status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' }, remark: String },
+    aadhar:       { status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' }, remark: String },
+  },
+
   status: {
     type: String,
     enum: ['applied', 'under-review', 'shortlisted', 'fee-pending', 'confirmed', 'rejected'],

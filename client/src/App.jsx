@@ -12,6 +12,8 @@ import Courses from './pages/Courses';
 import Notices from './pages/Notices';
 import Attendance from './pages/Attendance';
 import Exams from './pages/Exams';
+import Results from './pages/Results';
+import ActivityLogs from './pages/ActivityLogs';
 import Timetable from './pages/Timetable';
 import Fees from './pages/Fees';
 import Library from './pages/Library';
@@ -44,7 +46,8 @@ export default function App() {
       <BrowserRouter>
         <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<PublicHome />} />
+          <Route path="/landing" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
@@ -63,6 +66,9 @@ export default function App() {
             <Route path="/timetable" element={<Timetable />} />
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/exams" element={<Exams />} />
+            <Route path="/results" element={
+              <ProtectedRoute roles={['student']}><Results /></ProtectedRoute>
+            } />
             <Route path="/fees" element={<Fees />} />
             <Route path="/library" element={<Library />} />
             <Route path="/hostel" element={
@@ -84,6 +90,9 @@ export default function App() {
             } />
             <Route path="/website-settings" element={
               <ProtectedRoute roles={['admin', 'superadmin']}><ManageWebsite /></ProtectedRoute>
+            } />
+            <Route path="/activity-logs" element={
+              <ProtectedRoute roles={['superadmin']}><ActivityLogs /></ProtectedRoute>
             } />
           </Route>
 

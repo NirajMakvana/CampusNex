@@ -4,8 +4,10 @@ import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Search, Trash2, Upload, Download, X, AlertCircle, CheckCircle2, FileText, GraduationCap, Award, ToggleLeft, ToggleRight, Pencil, Users, UserCheck, UserX, Building2, Filter } from 'lucide-react';
 import { exportElementToPdf } from '../utils/exportPdf';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function Students() {
+  usePageTitle('Students');
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -13,6 +15,8 @@ export default function Students() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [inactiveCount, setInactiveCount] = useState(0);
   const PAGE_SIZE = 50;
 
   useEffect(() => {
@@ -58,6 +62,8 @@ export default function Students() {
       setStudents(res.data.data || []);
       setTotalPages(res.data.pages || 1);
       setTotalCount(res.data.count || 0);
+      if (res.data.activeCount !== undefined) setActiveCount(res.data.activeCount);
+      if (res.data.inactiveCount !== undefined) setInactiveCount(res.data.inactiveCount);
     } catch { toast.error('Failed to load students'); }
     finally { setLoading(false); }
   };
@@ -150,9 +156,7 @@ export default function Students() {
     finally { setImporting(false); }
   };
 
-  // KPI derived from current page — for accurate totals we use totalCount + students list
-  const activeCount = students.filter(s => s.userId?.isActive !== false).length;
-  const inactiveCount = students.filter(s => s.userId?.isActive === false).length;
+  // KPI — use server-side totalCount for accuracy
 
   return (
     <div className="space-y-5">

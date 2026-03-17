@@ -38,7 +38,16 @@ const getStudents = asyncHandler(async (req, res) => {
     .skip(skip)
     .limit(limitNum);
 
-  res.json({ success: true, count: total, page: pageNum, pages: Math.ceil(total / limitNum), data: students });
+  // Count active/inactive for KPI cards (only when no search/filter applied for performance)
+  let activeCount, inactiveCount;
+  if (!search && !department && !semester && !batch) {
+    [activeCount, inactiveCount] = await Promise.all([
+      Student.countDocuments({ isActive: true }),
+      Student.countDocuments({ isActive: false }),
+    ]);
+  }
+
+  res.json({ success: true, count: total, page: pageNum, pages: Math.ceil(total / limitNum), data: students, activeCount, inactiveCount });
 });
 
 // @route POST /api/students

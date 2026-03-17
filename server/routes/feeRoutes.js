@@ -21,7 +21,7 @@ router.post('/bulk-assign', authorize('admin', 'superadmin'), bulkAssignFee);
 router.post('/assign', authorize('admin', 'superadmin'), assignFee);
 router.get('/student/me', getStudentFees);                // student fetches own fees
 router.get('/student/:id', getStudentFees);
-router.put('/:id/pay', authorize('admin', 'superadmin'), markFeePaid);
+router.put('/:id/pay', markFeePaid);  // Allow students to pay their own fees
 router.put('/:id/discount', authorize('admin', 'superadmin'), applyDiscount);
 
 module.exports = router;

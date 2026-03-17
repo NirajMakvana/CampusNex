@@ -65,4 +65,33 @@ const deleteTimetableDay = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Deleted' });
 });
 
-module.exports = { getTimetable, saveTimetableDay, deleteTimetableDay };
+// GET /api/timetable/my — faculty sees their own slots across all timetables
+const getMyTimetable = asyncHandler(async (req, res) => {
+  const Faculty = require('../models/Faculty');
+  const profile = await Faculty.findOne({ userId: req.user._id });
+  if (!profile) { res.status(404); throw new Error('Faculty profile not found'); }
+
+  const { academicYear } = req.query;
+  const filter = { 'slots.faculty': profile._id };
+  if (academicYear) filter.academicYear = academicYear;
+
+  const allEntries = await Timetable.find(filter)
+    .populate('slots.course', 'name code')
+    .populate({ path: 'slots.faculty', populate: { path: 'userId', select: 'name' } })
+    .populate('department', 'name code')
+    .sort({ day: 1 });
+
+  // Filter slots to only this faculty's slots
+  const result = allEntries.map(entry => ({
+    _id: entry._id,
+    department: entry.department,
+    semester: entry.semester,
+    day: entry.day,
+    academicYear: entry.academicYear,
+    slots: entry.slots.filter(s => s.faculty?._id?.toString() === profile._id.toString()),
+  })).filter(e => e.slots.length > 0);
+
+  res.json({ success: true, data: result });
+});
+
+module.exports = { getTimetable, saveTimetableDay, deleteTimetableDay, getMyTimetable };
