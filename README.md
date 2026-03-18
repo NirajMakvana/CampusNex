@@ -181,7 +181,7 @@ Ensure you have the following installed:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/CampusNex.git
+git clone https://github.com/NirajMakvana/CampusNex.git
 cd CampusNex
 
 # Install server dependencies
@@ -584,7 +584,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ```
 MIT License
 
-Copyright (c) 2024 CampusNex
+Copyright (c) 2025 CampusNex
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -607,14 +607,7 @@ copies or substantial portions of the Software.
 - **Vercel & Render** — For excellent deployment platforms
 - **Open Source Community** — For the incredible libraries and tools
 
----
 
-## 📞 **Support & Contact**
-
-- **📧 Email**: support@campusnex.edu
-- **🐛 Issues**: [GitHub Issues](https://github.com/yourusername/CampusNex/issues)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/yourusername/CampusNex/discussions)
-- **📖 Documentation**: [Wiki](https://github.com/yourusername/CampusNex/wiki)
 
 ---
 
